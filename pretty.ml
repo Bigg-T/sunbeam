@@ -163,7 +163,7 @@ and string_of_dstruct d =
 and string_of_aprogram p =
   match p with
   | AProgram(dstructs, body, _) ->
-    (ExtString.String.join "\n" (List.map string_of_dstruct dstructs)) ^ "\n" ^ (string_of_aexpr body)
+    (ExtString.String.join "\n" (List.map string_of_dstruct dstructs)) ^ (string_of_aexpr body)
 
 let rec format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   let maybe_a a =
