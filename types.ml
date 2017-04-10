@@ -68,9 +68,14 @@ and 'a expr =
   | EApp of 'a expr * 'a expr list * 'a
   | ELambda of (string * 'a) list * 'a expr * 'a
   | ESeq of 'a expr list * 'a
-  | EStructDef of string * (string * 'a) list * 'a
 
-type 'a program = 'a expr
+(* type 'a program = 'a expr *)
+
+type 'a dstruct =
+  | DStruct of string * (string * 'a) list * 'a
+
+type 'a program =
+  | Program of 'a dstruct list * 'a expr * 'a
 
 type 'a immexpr = (* immediate expressions *)
   | ImmNum of int * 'a
@@ -91,9 +96,9 @@ and 'a aexpr = (* anf expressions *)
   | ALetRec of (string * 'a cexpr) list * 'a aexpr * 'a
   | ASeq of 'a cexpr * 'a aexpr * 'a
   | ACExpr of 'a cexpr
-  | AStructDef of string * (string * 'a) list * 'a
 
-and 'a aprogram = 'a aexpr
+type 'a aprogram =
+  | AProgram of 'a dstruct list * 'a aexpr * 'a
 
 type simple_expr =
   | Id of string

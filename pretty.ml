@@ -112,8 +112,6 @@ let rec string_of_expr (e : 'a expr) : string =
       (string_of_expr body)
   | ESeq(stmts, _) ->
     sprintf "(%s)" (ExtString.String.join "; " (List.map string_of_expr stmts))
-  | EStructDef(name, fields, _) ->
-    sprintf "(defstruct %s (%s))" name (ExtString.String.join ", " (List.map fst fields))
 
 let string_of_pos ((pstart, pend) : (Lexing.position * Lexing.position)) : string =
   sprintf "%s, %d:%d-%d:%d" pstart.pos_fname pstart.pos_lnum (pstart.pos_cnum - pstart.pos_bol)
@@ -158,7 +156,14 @@ and string_of_immexpr i =
   | ImmNum(n, _) -> string_of_int n
   | ImmBool(b, _) -> string_of_bool b
   | ImmId(x, _) -> x
-and string_of_aprogram p = string_of_aexpr p
+and string_of_dstruct d =
+  match d with
+  | DStruct(name, fields, _) ->
+    sprintf "(defstruct %s (%s))" name (ExtString.String.join ", " (List.map fst fields))
+and string_of_aprogram p =
+  match p with
+  | AProgram(dstructs, body, _) ->
+    (ExtString.String.join "\n" (List.map string_of_dstruct dstructs)) ^ "\n" ^ (string_of_aexpr body)
 
 let rec format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   let maybe_a a =
@@ -291,7 +296,8 @@ let rec format_expr (e : 'a expr) (print_a : 'a -> string) : string =
   flush_str_formatter ()
 
 and format_prog (p : 'a program) (print_a : 'a -> string) : string =
-  format_expr p print_a
+  match p with
+  | Program(dstructs, body, _) -> format_expr body print_a
 ;;
 
 let ast_of_pos_prog (e : sourcespan program) : string =

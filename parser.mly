@@ -119,9 +119,21 @@ expr :
   | LET binds IN expr { ELet($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | LET REC binds IN expr { ELetRec($3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | IF expr COLON expr ELSECOLON expr { EIf($2, $4, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
-  | DEFSTRUCT ID LPAREN ids RPAREN { EStructDef($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | binop_expr { $1 }
 
-program : expr EOF { $1 }
+dstruct :
+  | DEFSTRUCT ID LPAREN ids RPAREN { DStruct($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+
+dstructs :
+  | dstruct { [$1] }
+  | dstruct dstructs { $1::$2 }
+
+/*program :
+  | sstructs expr EOF { Program($1, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | expr EOF { $1 }*/
+
+program :
+  | dstructs expr EOF { Program($1, $2, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | expr EOF { Program([], $1, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
 
 %%

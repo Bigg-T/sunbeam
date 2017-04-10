@@ -51,7 +51,15 @@ let tag (p : 'a program) : tag program =
     | ELambda(args, body, _) ->
        let lam_tag = tag() in
        ELambda(List.map (fun (a, _) -> (a, tag())) args, helpE body, lam_tag)
-  and helpP p = helpE p
+  and helpS s =
+    match s with
+    | DStruct(name, fields, _) ->
+      let struct_tag = tag() in
+      DStruct(name, List.map (fun (a, _) -> (a, tag())) fields, struct_tag)
+  and helpP p =
+    match p with
+    | Program(dstructs, body, _) ->
+      Program(List.map helpS dstructs, helpE body, 0)
   in helpP p
 
 let rec untag (p : 'a program) : unit program =
@@ -85,8 +93,15 @@ let rec untag (p : 'a program) : unit program =
     | EApp(name, args, _) ->
        EApp(name, List.map helpE args, ())
     | ELambda(args, body, _) ->
-       ELambda(List.map (fun (x, _) -> (x, ())) args, helpE body, ())
-  and helpP p = helpE p
+      ELambda(List.map (fun (x, _) -> (x, ())) args, helpE body, ())
+  and helpS s =
+    match s with
+    | DStruct(name, fields, _) ->
+      DStruct(name, List.map (fun (a, _) -> (a, ())) fields, ())
+  and helpP p =
+    match p with
+    | Program(dstructs, body, _) ->
+      Program(List.map helpS dstructs, helpE body, ())
   in helpP p
 
 let atag (p : 'a aprogram) : tag aprogram =
@@ -138,5 +153,13 @@ let atag (p : 'a aprogram) : tag aprogram =
     | ImmId(x, _) -> ImmId(x, tag())
     | ImmNum(n, _) -> ImmNum(n, tag())
     | ImmBool(b, _) -> ImmBool(b, tag())
-  and helpP p = helpA p
+  and helpS s =
+    match s with
+    | DStruct(name, fields, _) ->
+      let struct_tag = tag() in
+      DStruct(name, List.map (fun (a, _) -> (a, tag())) fields, struct_tag)
+  and helpP p =
+    match p with
+    | AProgram(dstructs, body, _) ->
+      AProgram(List.map helpS dstructs, helpA body, 0)
   in helpP p

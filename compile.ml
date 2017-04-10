@@ -138,7 +138,8 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins : exn
     | EApp(func, args, loc) ->
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
   in
-  wf_E p builtins
+  match p with
+  | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
 ;;
 
 
@@ -146,9 +147,19 @@ type 'a anf_bind =
   | BSeq of 'a cexpr
   | BLet of string * 'a cexpr
   | BLetRec of (string * 'a cexpr) list
+;;
 
+let rec untag_dstruct s =
+  match s with
+  | DStruct(name, fields, _) ->
+    DStruct(name, List.map (fun (a, _) -> (a, ())) fields, ())
+;;
 let anf (p : tag program) : unit aprogram =
-  let rec helpP (p : tag program) : unit aprogram = helpA p
+  let rec helpP (p : tag program) : unit aprogram =
+    match p with
+    | Program(dstructs, body, _) ->
+      AProgram((List.map untag_dstruct dstructs), helpA body, ())
+  (* let rec helpP (p : tag program) : unit aprogram = helpA p *)
   and helpC (e : tag expr) : (unit cexpr * unit anf_bind list) =
     match e with
     | EPrim1(op, arg, _) ->
@@ -969,7 +980,10 @@ let call (label : arg) args =
     else [ IInstrComment(IAdd(Reg(ESP), Const(4 * len)), sprintf "Popping %d arguments" len) ] in
   setup @ [ ICall(label) ] @ teardown
 
-let compile_prog anfed =
+let compile_prog prog =
+  let anfed =
+    match prog with
+    | AProgram(dstructs, body, _) -> body in
   let prelude =
     "section .text
 extern error
@@ -1041,8 +1055,27 @@ let optimize (prog : tag aprogram) (verbose : bool) : tag aprogram =
   dae_prog2
 ;;
 
+type senvt = (string * (int * string list)) list;;
+
+let rec make_struct_env (structdefs : 'a dstruct list) (uniq_tag : int) : senvt =
+  match structdefs with
+  | [] -> []
+  | DStruct(name, fields, _)::rest ->
+    let field_names = List.map (fun (f,  _) -> f) fields in
+    (name, (uniq_tag, field_names))::(make_struct_env rest (uniq_tag + 1))
+;;
+
 
 let compile_to_string prog : (exn list, string) either =
+  let (structdefs, prog_body) =
+    match prog with
+    | Program(dstructs, body, _) ->
+      (dstructs, body) in
+(* | SStructDef of string * (string * 'a) list * 'a
+
+   and 'a aprogram = 'a sstruct list * 'a aexpr *)
+  (* let (structdefs, prog_body) = prog in *)
+  let struct_env = (make_struct_env structdefs 1) in
   let env = [ (* DBuiltin("equal", 2) *) ] in
   let errors = (well_formed prog env) in
   match errors with

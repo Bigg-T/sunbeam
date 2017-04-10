@@ -44,7 +44,9 @@ let free_vars (e : 'a aexpr) : string list =
 
 
 let rec purity_env (prog : tag aprogram) : (string * bool) list =
-  let (_, env) = helpA prog [] in env
+  match prog with
+  | AProgram(dstructs, body, _) ->
+    let (_, env) = helpA body [] in env
 and helpA (aexp : tag aexpr) (pure_env : (string * bool) list) : bool * (string * bool) list =
   (* is the given expression pure or not?
      Also, update ans with any bindings you encounter. *)
@@ -200,6 +202,10 @@ and untag_immexpr (imm : 'a immexpr) : unit immexpr =
   | ImmNum(a, _) -> ImmNum(a, ())
   | ImmBool(a, _) -> ImmBool(a, ())
   | ImmId(a, _) -> ImmId(a, ())
+and untag_dstruct (dstruct : 'a dstruct) : unit dstruct =
+  match dstruct with
+  | DStruct(name, fields, _) ->
+    DStruct(name, List.map (fun (f, _) -> (f, ())) fields, ())
 ;;
 
 type simple_env = (string * simple_expr) list
@@ -212,7 +218,9 @@ let rec debug_print (env : simple_env) : string =
 
 
 let rec const_fold (prog : tag aprogram) : unit aprogram =
-  const_fold_a prog []
+  match prog with
+  | AProgram(dstructs, prog_body, _) ->
+    AProgram((List.map untag_dstruct dstructs), (const_fold_a prog_body []), ())
 and const_fold_a (aexp : 'a aexpr) (env : simple_env) : unit aexpr =
   match aexp with
   | ACExpr c -> ACExpr(const_fold_c c env)
@@ -355,7 +363,9 @@ let rec cse (prog : tag aprogram) : unit aprogram =
      keys and the values of this table, but if you're careful, you might
      be able to simplify it to map simpl_exprs to strings. *)
   let equiv_exprs : (simple_expr * simple_expr) list = [] in
-  cse_a prog equiv_exprs purity
+  match prog with
+  | AProgram(dstructs, prog_body, _) ->
+    AProgram((List.map untag_dstruct dstructs), (cse_a prog_body equiv_exprs purity), ())
 and cse_a (aexp : 'a aexpr) (assoc_env : (simple_expr * simple_expr) list) (purity : (string * bool) list): unit aexpr =
   match aexp with
   | ALet(name, binding, body, _) ->
@@ -452,7 +462,10 @@ and cse_simple (sexp : simple_expr) (assoc_env : (simple_expr * simple_expr) lis
 
 let rec dae (prog : tag aprogram) : unit aprogram =
   let purity = purity_env prog in
-  let (new_prog, live_ids) = dae_a prog [] purity in new_prog
+    match prog with
+      | AProgram(dstructs, prog_body, _) ->
+        let (new_prog, live_ids) = dae_a prog_body [] purity in
+        AProgram((List.map untag_dstruct dstructs), new_prog, ())
 and dae_a (aexp : 'a aexpr) (live_ids : string list) (purity : (string * bool) list) : (unit aexpr * string list)  =
   match aexp with
   | ALet(name, binding, body, _) ->

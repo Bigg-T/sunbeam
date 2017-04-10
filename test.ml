@@ -15,7 +15,7 @@ let tvgc name heap_size program expected = name>::test_run_valgrind [string_of_i
 let terr name program expected = name>::test_err [] program name expected;;
 let tgcerr name heap_size program expected = name>::test_err [string_of_int heap_size] program name expected;;
 
-let tfvs name program expected = name>::
+(* let tfvs name program expected = name>::
                                  (fun _ ->
                                     let ast = parse_string name program in
                                     let anfed = anf (tag ast) in
@@ -23,7 +23,7 @@ let tfvs name program expected = name>::
                                     let c = Pervasives.compare in
                                     let str_list_print strs = "[" ^ (ExtString.String.join ", " strs) ^ "]" in
                                     assert_equal (List.sort ~cmp:c vars) (List.sort ~cmp:c expected) ~printer:str_list_print)
-;;
+;; *)
 
 let t_opt name program expected = name>::
                                   (fun _ ->
