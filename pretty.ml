@@ -112,6 +112,8 @@ let rec string_of_expr (e : 'a expr) : string =
       (string_of_expr body)
   | ESeq(stmts, _) ->
     sprintf "(%s)" (ExtString.String.join "; " (List.map string_of_expr stmts))
+  | EStructDef(name, fields, _) ->
+    sprintf "(defstruct %s (%s))" name (ExtString.String.join ", " (List.map fst fields))
 
 let string_of_pos ((pstart, pend) : (Lexing.position * Lexing.position)) : string =
   sprintf "%s, %d:%d-%d:%d" pstart.pos_fname pstart.pos_lnum (pstart.pos_cnum - pstart.pos_bol)

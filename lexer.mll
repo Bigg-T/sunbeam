@@ -17,6 +17,7 @@ rule token = parse
   | '\n' { new_line lexbuf; token lexbuf }
   | signed_int as x { NUM (int_of_string x) }
   | "def" { DEF }
+  | "defstruct" { DEFSTRUCT }
   | "add1" { ADD1 }
   | "sub1" { SUB1 }
   | "print" { PRINT }

@@ -34,6 +34,12 @@ let t_opt name program expected = name>::
 ;;
 let t_any name value expected = name>::(fun _ -> assert_equal expected value);;
 
+let rec print_errs (errs : exn list) : string =
+  match errs with
+  | [] -> ""
+  | first::rest -> Printexc.to_string first ^ " " ^ print_errs rest
+  | _ -> "Nothing"
+;;
 
 let pair_tests = [
   t "tup1" "let t = (4, (5, 6)) in
@@ -767,11 +773,16 @@ let combined_tests = [
     "let a = (lambda: (1, 2, 3)) in let b = a() in 5"
     "(alet a = (lambda(): (1, 2, 3)) in ((a()); 5))";
   t_opt "c3_test25"
-     "let a = 5 in
+    "let a = 5 in
      let b = print(a) in
      let c = print(b) + 5 in
      a"
-     "(alet b = print(5) in (alet unary_8 = print(b) in ((unary_8 + 5); 5)))";
+    "(alet b = print(5) in (alet unary_8 = print(b) in ((unary_8 + 5); 5)))";
+]
+;;
+
+let struct_tests = [
+  t "s_test1" "defstruct document (author)" "";
 ]
 ;;
 
@@ -782,8 +793,9 @@ let combined_tests = [
 
 
 let suite =
-  "suite">:::tests @ mutable_tuple_tests @ pair_tests @ oom @ wfn_tests
-             @ regression_tests @ gc @ letrec_tests @ combined_tests
+  (* "suite">:::tests @ mutable_tuple_tests @ pair_tests @ oom @ wfn_tests
+             @ regression_tests @ gc @ letrec_tests @ combined_tests *)
+  "suite">:::struct_tests
 ;;
 
 let () =
