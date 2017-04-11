@@ -150,6 +150,8 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
         else [UnboundId(name, loc)] in (* TODO could make unboundstruct *)
       let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
       name_shadow @ structname_existence @ fieldval_errs
+    | EStructGet(structname, fieldname, inst, loc) ->
+      [] (* TODO add wfn for EStructInst *)
   in
   match p with
   | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
@@ -299,6 +301,10 @@ let anf (p : tag program) : unit aprogram =
       let tmp = sprintf "makestruct_%d" tag in
       let (new_fieldvals, new_setup) = List.split (List.map helpI fieldvals) in
       (ImmId(tmp, ()), (List.concat new_setup) @ [BLet(tmp, CStructInst(name, structname, new_fieldvals, ()))])
+    | EStructGet(structname, fieldname, inst, tag) ->
+      let tmp = sprintf "structget_%d" tag in
+      let (inst_imm, inst_setup) = helpI inst in
+      (ImmId(tmp, ()), inst_setup @ [BLet(tmp, CStructGet(structname, fieldname, inst_imm, ()))])
 
   and helpA e : unit aexpr =
     let (ans, ans_setup) = helpC e in
@@ -429,6 +435,13 @@ let count_vars e =
 let rec replicate x i =
   if i = 0 then []
   else x :: (replicate x (i - 1))
+
+
+let rec get_struct_field_idx fieldname fields idx : int =
+  match fields with
+  | [] -> failwith "Invalid fieldname"
+  | first::rest when (fieldname = first) -> idx
+  | first::rest -> get_struct_field_idx fieldname rest (idx + 1)
 
 (* IMPLEMENT THIS FROM YOUR PREVIOUS ASSIGNMENT -- THE ONLY NEW CODE IS CSetItem and ALet *)
 (* let compile_fun name args body =
@@ -611,6 +624,7 @@ and check_out_of_bounds err tup_addr idx_reg =
 and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) (struct_env : senvt) : instruction list =
   match e with
   | ALet(id, e, body, tag) ->
+    printf "let id: %s\n" id;
     let create_lambda_label =
       begin match e with
         | CLambda(args, body, l_tag) ->
@@ -1009,6 +1023,27 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
     @
     (allocate_struct_fields fieldvals 2)
     @ [ILineComment("print_stack" ^ string_of_int tag);]
+  | CStructGet(structname, fieldname, inst, tag) ->
+    let (uniq_tag, fieldnames) = List.assoc structname struct_env in
+    let field_idx = ImmNum((get_struct_field_idx fieldname fieldnames 0), 0) in
+    [
+      ILineComment("CStructGet start here" ^ string_of_int tag);
+      IMov(Reg(EAX), (compile_imm inst env));
+    ]
+    @ (* TODO add check_struct, error if not struct *)
+    [
+      (* shift right and shift left by 3 to get rid of the 111 tag for a struct inst *)
+      IInstrComment(ISar(Reg(EAX), Const(3)), "get rid of the 111 tag for a struct inst");
+      IShl(Reg(EAX), Const(3));
+
+      (* move index into EDX *)
+      IMov(Reg(EDX), (compile_imm field_idx env));
+      (* get the value at the index in the struct inst *)
+      IMov(Reg(ECX), RegOffsetReg(EAX, EDX, 2, 4));
+      IMov(Reg(EAX), Reg(ECX));
+
+      ILineComment("CStructGet end here" ^ string_of_int tag)
+    ]
 and compile_imm e env =
   match e with
   | ImmNum(n, _) -> Const((n lsl 1))

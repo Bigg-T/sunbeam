@@ -120,6 +120,7 @@ expr :
   | LET REC binds IN expr { ELetRec($3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | IF expr COLON expr ELSECOLON expr { EIf($2, $4, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | MAKESTRUCT ID ID LPAREN exprs RPAREN { EStructInst($2, $3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | LPAREN ID MINUS ID expr RPAREN { EStructGet($2, $4, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | binop_expr { $1 }
 
 dstruct :

@@ -791,7 +791,12 @@ The identifier doc1, used at <s_test4, 1:16-1:46>, is not in scope";
   terr "s_test5" "defstruct document (rating) makestruct doc1 document (a)"
     "The identifier a, used at <s_test5, 1:54-1:55>, is not in scope";
   (* TODO add arity checking for fieldnames in  wfn *)
-  t "s_test3" "defstruct document (rating, isGood) makestruct doc1 document (100, true)" "(struct 100, true)";
+  t "s_test6" "defstruct document (rating, isGood) makestruct doc1 document (100, true)" "(struct 100, true)";
+  t "s_test7" "defstruct document (rating, isGood) makestruct doc1 document (100, true) (document - rating doc1)" "";
+  (* TODO
+     we should change the syntax of makestruct to
+     let doc1 = makestruct document (100, true)
+  *)
 ]
 ;;
 

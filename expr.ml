@@ -54,6 +54,9 @@ let tag (p : 'a program) : tag program =
     | EStructInst(name, structname, fieldvals, _) ->
        let struct_inst_tag = tag() in
        EStructInst(name, structname, List.map helpE fieldvals, struct_inst_tag)
+    | EStructGet(structname, fieldname, inst, _) ->
+       let struct_get_tag = tag() in
+       EStructGet(structname, fieldname, helpE inst, struct_get_tag)
   and helpS s =
     match s with
     | DStruct(name, fields, _) ->
@@ -155,6 +158,9 @@ let atag (p : 'a aprogram) : tag aprogram =
     | CStructInst(name, structname, fieldvals, _) ->
        let struct_inst_tag = tag() in
        CStructInst(name, structname, List.map helpI fieldvals, struct_inst_tag)
+    | CStructGet(structname, fieldname, inst, _) ->
+       let struct_get_tag = tag() in
+       CStructGet(structname, fieldname, helpI inst, struct_get_tag)
     | CImmExpr i -> CImmExpr (helpI i)
   and helpI (i : 'a immexpr) : tag immexpr =
     match i with
