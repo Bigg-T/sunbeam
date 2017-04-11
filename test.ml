@@ -782,7 +782,8 @@ let combined_tests = [
 ;;
 
 let struct_tests = [
-  t "s_test1" "defstruct document (author)" "";
+  t "s_test1" "defstruct document (author) 7" "7";
+  t "s_test2" "defstruct document (rating) makestruct doc1 document (100)" "";
 ]
 ;;
 

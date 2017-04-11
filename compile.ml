@@ -137,6 +137,8 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins : exn
       wf_E body (args @ env)
     | EApp(func, args, loc) ->
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
+    | EStructInst(name, structname, fieldvals, _) ->
+      [] (* TODO add wfn for struct instances *)
   in
   match p with
   | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
@@ -206,6 +208,9 @@ let anf (p : tag program) : unit aprogram =
       let (idx_imm, idx_setup) = helpI idx in
       let (rhs_imm, rhs_setup) = helpI rhs in
       (CSetItem(tup_imm, idx_imm, rhs_imm, ()), tup_setup @ idx_setup @ rhs_setup)
+    | EStructInst(name, structname, fieldvals, _) ->
+      let (new_fieldvals, new_setup) = List.split (List.map helpI fieldvals) in
+      (CStructInst(name, structname, new_fieldvals, ()), List.concat new_setup)
     | _ -> let (imm, setup) = helpI e in (CImmExpr imm, setup)
 
   and helpI (e : tag expr) : (unit immexpr * unit anf_bind list) =
@@ -279,6 +284,10 @@ let anf (p : tag program) : unit aprogram =
       let (tup_imm, tup_setup) = helpI tup in
       let (rhs_imm, rhs_setup) = helpI rhs in
       (ImmId(tmp, ()), tup_setup @ rhs_setup @ [BLet(tmp, CSetItem(tup_imm, ImmNum(idx, ()), rhs_imm, ()))])
+    | EStructInst(name, structname, fieldvals, tag) ->
+      let tmp = sprintf "makestruct_%d" tag in
+      let (new_fieldvals, new_setup) = List.split (List.map helpI fieldvals) in
+      (ImmId(tmp, ()), (List.concat new_setup) @ [BLet(tmp, CStructInst(name, structname, new_fieldvals, ()))])
 
   and helpA e : unit aexpr =
     let (ans, ans_setup) = helpC e in
@@ -949,6 +958,9 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
       (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
       IAdd(Reg(EAX), Const(1));
     ]
+  | CStructInst(name, structname, fieldvals, tag) -> [
+      IMov(Reg(EAX), Const(152));
+    ]
 and compile_imm e env =
   match e with
   | ImmNum(n, _) -> Const((n lsl 1))
@@ -1071,10 +1083,6 @@ let compile_to_string prog : (exn list, string) either =
     match prog with
     | Program(dstructs, body, _) ->
       (dstructs, body) in
-(* | SStructDef of string * (string * 'a) list * 'a
-
-   and 'a aprogram = 'a sstruct list * 'a aexpr *)
-  (* let (structdefs, prog_body) = prog in *)
   let struct_env = (make_struct_env structdefs 1) in
   let env = [ (* DBuiltin("equal", 2) *) ] in
   let errors = (well_formed prog env) in

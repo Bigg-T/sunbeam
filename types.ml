@@ -68,6 +68,7 @@ and 'a expr =
   | EApp of 'a expr * 'a expr list * 'a
   | ELambda of (string * 'a) list * 'a expr * 'a
   | ESeq of 'a expr list * 'a
+  | EStructInst of string * string * 'a expr list * 'a
 
 (* type 'a program = 'a expr *)
 
@@ -90,6 +91,7 @@ and 'a cexpr = (* compound expressions *)
   | CGetItem of 'a immexpr * 'a immexpr * 'a
   | CSetItem of 'a immexpr * 'a immexpr * 'a immexpr * 'a
   | CLambda of string list * 'a aexpr * 'a
+  | CStructInst of string * string * 'a immexpr list * 'a
   | CImmExpr of 'a immexpr (* for when you just need an immediate value *)
 and 'a aexpr = (* anf expressions *)
   | ALet of string * 'a cexpr * 'a aexpr * 'a
