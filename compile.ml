@@ -40,7 +40,8 @@ let tag_as_bool = HexConst(0x00000001)
 
 let end_lambda_body_label = "end_lambda_body_"
 
-type 'a envt = (string * 'a) list
+type 'a envt = (string * 'a) list;;
+type senvt = (string * (int * string list)) list;; (* struct env *)
 
 let rec is_anf (e : 'a expr) : bool =
   match e with
@@ -61,7 +62,7 @@ and is_imm e =
 
 
 (* FINISH THIS FUNCTION WITH THE WELL-FORMEDNESS FROM FER-DE-LANCE *)
-let well_formed (p : (Lexing.position * Lexing.position) program) builtins : exn list =
+let well_formed (p : (Lexing.position * Lexing.position) program) builtins struct_env: exn list =
   let rec wf_E e (env : sourcespan envt) =
     match e with
     | EBool _ -> []
@@ -137,8 +138,18 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins : exn
       wf_E body (args @ env)
     | EApp(func, args, loc) ->
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
-    | EStructInst(name, structname, fieldvals, _) ->
-      [] (* TODO add wfn for struct instances *)
+    | EStructInst(name, structname, fieldvals, loc) ->
+      let name_shadow =
+        if (List.mem_assoc name env)
+        then [ShadowId(name, loc, (List.assoc name env))]
+        else [] in
+      let structname_existence =
+        (printf "%s" structname);
+        if (List.mem_assoc structname struct_env)
+        then []
+        else [UnboundId(name, loc)] in (* TODO could make unboundstruct *)
+      let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
+      name_shadow @ structname_existence @ fieldval_errs
   in
   match p with
   | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
@@ -424,9 +435,9 @@ let rec replicate x i =
    ([],[],[])
    (* failwith "NYI: compile_fun" *)
 *)
-let rec compile_fun fun_name args e : (instruction list * instruction list * instruction list) =
+let rec compile_fun fun_name args e struct_env : (instruction list * instruction list * instruction list) =
   let args_env = List.mapi (fun i a -> (a, RegOffset(word_size * (i + 2), EBP))) args in
-  let compiled = (compile_aexpr e 1 args_env (List.length args) true) in
+  let compiled = (compile_aexpr e 1 args_env (List.length args) true struct_env) in
   let count_local_vars = count_vars e in
   (* let optimized = optimize compiled in (*causing problem because some invarient are broken*) *)
   (([
@@ -445,7 +456,7 @@ let rec compile_fun fun_name args e : (instruction list * instruction list * ins
      IPop(Reg(EBP));
      IInstrComment(IRet, sprintf "End of %s" fun_name)
    ])
-and compile_lambda args lambda_body tag env =
+and compile_lambda args lambda_body tag env struct_env =
   let env_str_list = List.map ((fun (x, _) -> x)) env in
   let rec is_contain_string l str =
     match l with
@@ -485,7 +496,7 @@ and compile_lambda args lambda_body tag env =
       ] @ set_up_closure_on_stack rest (acc + 1)
   in
   let args_env = List.mapi (fun i a -> (a, RegOffset(word_size * (i + 3), EBP))) args in
-  let compiled = (compile_aexpr lambda_body ((List.length free_list) + 1) ((free_vars_env free_list env ) @ args_env) ((List.length args)) true) in
+  let compiled = (compile_aexpr lambda_body ((List.length free_list) + 1) ((free_vars_env free_list env ) @ args_env) ((List.length args)) true struct_env) in
   let count_local_vars = count_vars lambda_body in
   let rec add_free_var_heap (free_list : string list) (next_offset : int) : (instruction list) =
     match free_list with
@@ -597,7 +608,7 @@ and check_out_of_bounds err tup_addr idx_reg =
     IInstrComment(ICmp(idx_reg, RegOffset(0, tup_addr)), "compare given index with tuple length");
     IJge(err);
   ]
-and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) : instruction list =
+and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) (struct_env : senvt) : instruction list =
   match e with
   | ALet(id, e, body, tag) ->
     let create_lambda_label =
@@ -608,8 +619,8 @@ and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (
            IJmp("exec_lambda_body_" ^ string_of_int l_tag);]
         | _ -> []
       end in
-    let prelude = compile_cexpr e (si + 1) env num_args false in
-    let body = compile_aexpr body (si + 1) ((id, RegOffset(~-word_size * si, EBP))::env) num_args is_tail in
+    let prelude = compile_cexpr e (si + 1) env num_args false struct_env in
+    let body = compile_aexpr body (si + 1) ((id, RegOffset(~-word_size * si, EBP))::env) num_args is_tail struct_env in
     [ILineComment("$_________________START___let_" ^ string_of_int tag)]
     @ create_lambda_label
     (* @  [ILineComment("$_________________PRELUDE___let_" ^ string_of_int tag)] *)
@@ -619,7 +630,7 @@ and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (
     @ body
     @ [ILineComment("$_________________END___let_" ^ string_of_int tag)]
   (* @ ILineComment("----end of let");] *)
-  | ACExpr e -> compile_cexpr e si env num_args is_tail
+  | ACExpr e -> compile_cexpr e si env num_args is_tail struct_env
   | ALetRec(binds, body, tag) ->
     let create_lambda_label id e =
       begin match e with
@@ -634,7 +645,7 @@ and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (
         | [] -> ([], []) (* (instructions, env) *)
         | (id, e)::rest ->
           let (rest_instr, rest_env) = prelude_fn rest (next_si + 1) in
-          let prelude = (compile_cexpr e next_si ((id, RegOffset(~-word_size * (next_si - 1), EBP))::env) num_args false) in
+          let prelude = (compile_cexpr e next_si ((id, RegOffset(~-word_size * (next_si - 1), EBP))::env) num_args false struct_env) in
           (
             (
               [ILineComment("$_________________START___letRECCCC______bindinnnng_preludeeeeee_" ^ id ^ string_of_int tag)]
@@ -655,17 +666,17 @@ and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (
           )
       end in
     let (prelude_instr, prelude_env) = prelude_fn binds (si + 1) in
-    let body = compile_aexpr body (si + 1) (prelude_env @ env) num_args is_tail in
+    let body = compile_aexpr body (si + 1) (prelude_env @ env) num_args is_tail struct_env in
     [ILineComment("$_________________START___letRECCCCCCCCCCCCCCCC_______" ^ string_of_int tag)]
     @ prelude_instr
     @ [ILineComment("$_________________FFFFFFF___let_" ^ string_of_int tag)]
     @ body
     @ [ILineComment("$_________________END___letRECCCCCCCCCCCCCCCC _______________ENDDDDDDDDDD_" ^ string_of_int tag)]
   | ASeq (cexp, aexp, tag) ->
-    let compiled_cexp = compile_cexpr cexp (si + 1) env num_args is_tail in
-    let compiled_aexp = compile_aexpr aexp si env num_args is_tail in
+    let compiled_cexp = compile_cexpr cexp (si + 1) env num_args is_tail struct_env in
+    let compiled_aexp = compile_aexpr aexp si env num_args is_tail struct_env in
     compiled_cexp @ compiled_aexp
-and compile_cexpr (e : tag cexpr) si env num_args is_tail =
+and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
   match e with
   | CPrim1(op, e, tag) ->
     let e_reg = compile_imm e env in
@@ -816,9 +827,9 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
       ICmp(Reg(EAX), const_true);
       IJne(else_label)
     ]
-    @ (compile_aexpr thn si env num_args is_tail)
+    @ (compile_aexpr thn si env num_args is_tail struct_env)
     @ [ IJmp(end_label); ILabel(else_label) ]
-    @ (compile_aexpr els si env num_args is_tail)
+    @ (compile_aexpr els si env num_args is_tail struct_env)
     @ [ ILabel(end_label) ]
   | CImmExpr i -> [ IMov(Reg(EAX), compile_imm i env) ]
   | CApp(funa, args, tag) ->
@@ -920,7 +931,7 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
     ]
   | CLambda(args, body, tag) ->
     (* TODO should pass in the pointer to function tuple and the free env based on the distance from the start of the tuple*)
-    let (prologue, comp_body, epilogue) = (compile_lambda args body tag env) in
+    let (prologue, comp_body, epilogue) = (compile_lambda args body tag env struct_env) in
     let lambda_body = prologue @ comp_body @ epilogue in
     [
       ILineComment("$_________________START___lambda_" ^ string_of_int tag);
@@ -958,9 +969,46 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail =
       (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
       IAdd(Reg(EAX), Const(1));
     ]
-  | CStructInst(name, structname, fieldvals, tag) -> [
-      IMov(Reg(EAX), Const(152));
+  | CStructInst(name, structname, fieldvals, tag) ->
+    let (uniq_tag, fieldnames) = List.assoc structname struct_env in
+    let padding = if (((((List.length fieldvals) + 2) * 4) mod 8) == 0) then 0 else 1 in
+    let rec allocate_struct_fields fieldvals idx =
+      match fieldvals with
+      | [] ->
+        let add_in_padding =
+          if (padding = 1)
+          then [IMov(RegOffset((idx * 4), ESI), (Sized(DWORD_PTR, HexConst(0xdeadface))))]
+          else [] in
+        add_in_padding @ [IAdd(Reg(ESI), Const((idx + padding) * 4))]
+      | first::rest ->
+        [
+          IMov(Reg(EDX), (Sized(DWORD_PTR, (compile_imm first env))));
+          IInstrComment(IMov(RegOffset((idx * 4), ESI), Reg(EDX)), "move struct value to address of ESI");
+        ]
+        @ (allocate_struct_fields rest (idx + 1))
+    in
+    (* make the struct inst and put it on the heap *)
+      (*
+      increment value of ESI so that it represents the next available addr on the heap
+      and then add on the next value of the tuple
+      *)
+    (reserve (((List.length fieldvals) + 2 + padding) * 4) tag) @
+    [
+      ILineComment("__________________STRUCT_STARTTTT_______________" ^ string_of_int tag);
+      (* "allocation step" *)
+      IMov(Reg(EAX), Reg(ESI));
+      (* IAdd(Reg(ESI), Const(8)); *)
+      IInstrComment(IOr(Reg(EAX), Const(7)), "create pointer to struct inst");
+      (* unique struct tag  *)
+      IInstrComment(IMov(RegOffset(0, ESI), (Sized(DWORD_PTR, (Const(uniq_tag lsl 1))))),
+                    "move unique struct tag into ESI");
+      (* length of struct fields *)
+      IInstrComment(IMov(RegOffset(4, ESI), (Sized(DWORD_PTR, (Const((List.length fieldvals) lsl 1))))),
+                    "move length of struct into ESI");
     ]
+    @
+    (allocate_struct_fields fieldvals 2)
+    @ [ILineComment("print_stack" ^ string_of_int tag);]
 and compile_imm e env =
   match e with
   | ImmNum(n, _) -> Const((n lsl 1))
@@ -991,11 +1039,23 @@ let call (label : arg) args =
     if len = 0 then []
     else [ IInstrComment(IAdd(Reg(ESP), Const(4 * len)), sprintf "Popping %d arguments" len) ] in
   setup @ [ ICall(label) ] @ teardown
+;;
+
+
+let rec make_struct_env (structdefs : 'a dstruct list) (uniq_tag : int) : senvt =
+  match structdefs with
+  | [] -> []
+  | DStruct(name, fields, _)::rest ->
+    let field_names = List.map (fun (f,  _) -> f) fields in
+    (name, (uniq_tag, field_names))::(make_struct_env rest (uniq_tag + 1))
+;;
+
 
 let compile_prog prog =
-  let anfed =
+  let (structdefs, anfed) =
     match prog with
-    | AProgram(dstructs, body, _) -> body in
+    | AProgram(dstructs, body, _) -> (dstructs, body) in
+  let struct_env = (make_struct_env structdefs 1) in
   let prelude =
     "section .text
 extern error
@@ -1037,7 +1097,7 @@ err_index_not_num:%s"
       (to_asm (call (Label "error") [Const(err_IF_NOT_TUPLE)]))
   in
   (* $heap is a mock parameter name, just so that compile_fun knows our_code_starts_here takes in 1 parameter *)
-  let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" ["$heap"] anfed in
+  let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" ["$heap"] anfed struct_env in
   let heap_start = [
     IInstrComment(IMov(LabelContents("STACK_BOTTOM"), Reg(EBP)), "This is the bottom of our Garter stack");
     ILineComment("heap start");
@@ -1067,16 +1127,6 @@ let optimize (prog : tag aprogram) (verbose : bool) : tag aprogram =
   dae_prog2
 ;;
 
-type senvt = (string * (int * string list)) list;;
-
-let rec make_struct_env (structdefs : 'a dstruct list) (uniq_tag : int) : senvt =
-  match structdefs with
-  | [] -> []
-  | DStruct(name, fields, _)::rest ->
-    let field_names = List.map (fun (f,  _) -> f) fields in
-    (name, (uniq_tag, field_names))::(make_struct_env rest (uniq_tag + 1))
-;;
-
 
 let compile_to_string prog : (exn list, string) either =
   let (structdefs, prog_body) =
@@ -1085,7 +1135,7 @@ let compile_to_string prog : (exn list, string) either =
       (dstructs, body) in
   let struct_env = (make_struct_env structdefs 1) in
   let env = [ (* DBuiltin("equal", 2) *) ] in
-  let errors = (well_formed prog env) in
+  let errors = (well_formed prog env struct_env) in
   match errors with
   | [] ->
     let tagged : tag program = tag prog in

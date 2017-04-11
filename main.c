@@ -139,6 +139,7 @@ void printHelpOld(FILE *out, int val) {
   // printf("print val at: %x\n", val);
   // int is_lambda = ((val << 29) >> 29) == 5;
   int is_lambda = (val & 0x5) == 5;
+  int is_struct_inst = (val & 0x7) == 7;
   if((val & NUM_TAG_MASK) == 0) {
     fprintf(out, "%d", val >> 1);
   }
@@ -156,6 +157,16 @@ void printHelpOld(FILE *out, int val) {
     for (int i = 1; i <= len; i++) {
       if (i > 1) fprintf(out, ", ");
       printHelpOld(out, addr[i]);
+    }
+    fprintf(out, ")");
+  }
+  else if (is_struct_inst) {
+    int* addr = (int*)(val & ~0x7);
+    fprintf(out, "(struct ");
+    int len = addr[1] >> 1;
+    for (int i = 1; i <= len; i++) {
+      if (i > 1) fprintf(out, ", ");
+      printHelpOld(out, addr[i + 1]);
     }
     fprintf(out, ")");
   }

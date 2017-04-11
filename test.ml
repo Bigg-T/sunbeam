@@ -783,7 +783,15 @@ let combined_tests = [
 
 let struct_tests = [
   t "s_test1" "defstruct document (author) 7" "7";
-  t "s_test2" "defstruct document (rating) makestruct doc1 document (100)" "";
+  t "s_test2" "defstruct document (rating) makestruct doc1 document (100)" "(struct 100)";
+  terr "s_test3" "makestruct doc1 document (100)" "The identifier doc1";
+  terr "s_test4" "let doc1 = 7 in makestruct doc1 document (100)"
+    "The identifier doc1, defined at <s_test4, 1:16-1:46>, shadows one defined at <s_test4, 1:4-1:8>
+The identifier doc1, used at <s_test4, 1:16-1:46>, is not in scope";
+  terr "s_test5" "defstruct document (rating) makestruct doc1 document (a)"
+    "The identifier a, used at <s_test5, 1:54-1:55>, is not in scope";
+  (* TODO add arity checking for fieldnames in  wfn *)
+  t "s_test3" "defstruct document (rating, isGood) makestruct doc1 document (100, true)" "(struct 100, true)";
 ]
 ;;
 
