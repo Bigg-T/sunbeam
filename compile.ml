@@ -1035,7 +1035,8 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
       (* move index into EDX *)
       IMov(Reg(EDX), (compile_imm field_idx env));
       (* get the value at the index in the struct inst *)
-      IMov(Reg(ECX), RegOffsetReg(EAX, EDX, 2, 4));
+      (* |struct uni id (4)| lenth |(8) starting of fields value*)
+      IMov(Reg(ECX), RegOffsetReg(EAX, EDX, 2, 8));
       IMov(Reg(EAX), Reg(ECX));
 
       ILineComment("CStructGet end here" ^ string_of_int tag)

@@ -790,9 +790,23 @@ let struct_tests = [
   (* TODO add arity checking for fieldnames in  wfn *)
   t "s_test5" "defstruct document (rating, isGood) makestruct document (100, true)" "(struct 100, true)";
   t "s_test6" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in doc1" "(struct 100, true)";
-  (* t "s_test7" "defstruct document (rating, isGood) makestruct document (100, true) (document - rating doc1)" ""; *)
+  t "s_test7" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in (document-rating doc1)" "100";
+  t "s_test8" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in (document-isGood doc1)" "true";
+  t "s_test9" "defstruct document (rating, isGood)
+              defstruct cabinet (d1, d2)
+              let doc1 = makestruct document (100, true) in
+                let doc2 = makestruct document (401, false) in
+                  let cab1 = makestruct cabinet (doc1, doc2) in
+                    (cabinet-d1 cab1)" "(struct 100, true)";
+  t "s_test10" "defstruct document (rating, isGood)
+               defstruct cabinet (d1, d2)
+               let doc1 = makestruct document (100, true) in
+                 let doc2 = makestruct document (401, false) in
+                   let cab1 = makestruct cabinet (doc1, doc2) in
+                     (document-rating (cabinet-d1 cab1))" "100";
 ]
 ;;
+(* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)
 
 (* assignment has us assume that higher order functions aren't passed impure arguments*)
 (* t "c_test18" (* *)
