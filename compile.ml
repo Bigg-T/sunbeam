@@ -138,18 +138,14 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
       wf_E body (args @ env)
     | EApp(func, args, loc) ->
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
-    | EStructInst(name, structname, fieldvals, loc) ->
-      let name_shadow =
-        if (List.mem_assoc name env)
-        then [ShadowId(name, loc, (List.assoc name env))]
-        else [] in
+    | EStructInst(structname, fieldvals, loc) ->
       let structname_existence =
         (printf "%s" structname);
         if (List.mem_assoc structname struct_env)
         then []
-        else [UnboundId(name, loc)] in (* TODO could make unboundstruct *)
+        else [UnboundId(structname, loc)] in (* TODO could make unboundstruct *)
       let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
-      name_shadow @ structname_existence @ fieldval_errs
+      structname_existence @ fieldval_errs
     | EStructGet(structname, fieldname, inst, loc) ->
       [] (* TODO add wfn for EStructInst *)
   in
@@ -221,9 +217,9 @@ let anf (p : tag program) : unit aprogram =
       let (idx_imm, idx_setup) = helpI idx in
       let (rhs_imm, rhs_setup) = helpI rhs in
       (CSetItem(tup_imm, idx_imm, rhs_imm, ()), tup_setup @ idx_setup @ rhs_setup)
-    | EStructInst(name, structname, fieldvals, _) ->
+    | EStructInst(structname, fieldvals, _) ->
       let (new_fieldvals, new_setup) = List.split (List.map helpI fieldvals) in
-      (CStructInst(name, structname, new_fieldvals, ()), List.concat new_setup)
+      (CStructInst(structname, new_fieldvals, ()), List.concat new_setup)
     | _ -> let (imm, setup) = helpI e in (CImmExpr imm, setup)
 
   and helpI (e : tag expr) : (unit immexpr * unit anf_bind list) =
@@ -297,10 +293,10 @@ let anf (p : tag program) : unit aprogram =
       let (tup_imm, tup_setup) = helpI tup in
       let (rhs_imm, rhs_setup) = helpI rhs in
       (ImmId(tmp, ()), tup_setup @ rhs_setup @ [BLet(tmp, CSetItem(tup_imm, ImmNum(idx, ()), rhs_imm, ()))])
-    | EStructInst(name, structname, fieldvals, tag) ->
+    | EStructInst(structname, fieldvals, tag) ->
       let tmp = sprintf "makestruct_%d" tag in
       let (new_fieldvals, new_setup) = List.split (List.map helpI fieldvals) in
-      (ImmId(tmp, ()), (List.concat new_setup) @ [BLet(tmp, CStructInst(name, structname, new_fieldvals, ()))])
+      (ImmId(tmp, ()), (List.concat new_setup) @ [BLet(tmp, CStructInst(structname, new_fieldvals, ()))])
     | EStructGet(structname, fieldname, inst, tag) ->
       let tmp = sprintf "structget_%d" tag in
       let (inst_imm, inst_setup) = helpI inst in
@@ -983,7 +979,7 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
       (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
       IAdd(Reg(EAX), Const(1));
     ]
-  | CStructInst(name, structname, fieldvals, tag) ->
+  | CStructInst(structname, fieldvals, tag) ->
     let (uniq_tag, fieldnames) = List.assoc structname struct_env in
     let padding = if (((((List.length fieldvals) + 2) * 4) mod 8) == 0) then 0 else 1 in
     let rec allocate_struct_fields fieldvals idx =

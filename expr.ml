@@ -51,9 +51,9 @@ let tag (p : 'a program) : tag program =
     | ELambda(args, body, _) ->
        let lam_tag = tag() in
        ELambda(List.map (fun (a, _) -> (a, tag())) args, helpE body, lam_tag)
-    | EStructInst(name, structname, fieldvals, _) ->
+    | EStructInst(structname, fieldvals, _) ->
        let struct_inst_tag = tag() in
-       EStructInst(name, structname, List.map helpE fieldvals, struct_inst_tag)
+       EStructInst(structname, List.map helpE fieldvals, struct_inst_tag)
     | EStructGet(structname, fieldname, inst, _) ->
        let struct_get_tag = tag() in
        EStructGet(structname, fieldname, helpE inst, struct_get_tag)
@@ -100,8 +100,8 @@ let rec untag (p : 'a program) : unit program =
        EApp(name, List.map helpE args, ())
     | ELambda(args, body, _) ->
       ELambda(List.map (fun (x, _) -> (x, ())) args, helpE body, ())
-    | EStructInst(name, structname, fieldvals, _) ->
-      EStructInst(name, structname, List.map helpE fieldvals, ())
+    | EStructInst(structname, fieldvals, _) ->
+      EStructInst(structname, List.map helpE fieldvals, ())
   and helpS s =
     match s with
     | DStruct(name, fields, _) ->
@@ -155,9 +155,9 @@ let atag (p : 'a aprogram) : tag aprogram =
     | CLambda(args, body, _) ->
        let lam_tag = tag() in
        CLambda(args, helpA body, lam_tag)
-    | CStructInst(name, structname, fieldvals, _) ->
+    | CStructInst(structname, fieldvals, _) ->
        let struct_inst_tag = tag() in
-       CStructInst(name, structname, List.map helpI fieldvals, struct_inst_tag)
+       CStructInst(structname, List.map helpI fieldvals, struct_inst_tag)
     | CStructGet(structname, fieldname, inst, _) ->
        let struct_get_tag = tag() in
        CStructGet(structname, fieldname, helpI inst, struct_get_tag)

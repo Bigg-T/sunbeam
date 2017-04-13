@@ -150,8 +150,8 @@ and string_of_cexpr c =
     sprintf "%s[%s] := %s" (string_of_immexpr tup) (string_of_immexpr idx) (string_of_immexpr rhs)
   | CLambda(args, body, _) ->
     sprintf "(lambda(%s): %s)" (ExtString.String.join ", " args) (string_of_aexpr body)
-  | CStructInst(name, structname, fieldvals, _) ->
-    sprintf "(make-struct %s %s (%s))" name structname (ExtString.String.join ", " (List.map string_of_immexpr fieldvals))
+  | CStructInst(structname, fieldvals, _) ->
+    sprintf "(make-struct %s (%s))" structname (ExtString.String.join ", " (List.map string_of_immexpr fieldvals))
   | CStructGet(structname, fieldname, inst, _) ->
     sprintf "(%s-%s %s)" structname fieldname (string_of_immexpr inst)
   | CImmExpr i -> string_of_immexpr i
