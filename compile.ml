@@ -72,7 +72,15 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
       (try ignore (List.assoc x env); []
        with Not_found ->
          [UnboundId(x, loc)])
-    | EPrim1(_, e, _) -> wf_E e env
+    | EPrim1(op, e, loc) ->
+      let structname_err = begin match op with
+        | StructHuh structname ->
+          if (List.mem_assoc structname struct_env)
+          then []
+          else [UnboundStructName(structname, loc)]
+        | _ -> []
+      end in
+      structname_err @ wf_E e env
     | EPrim2(_, l, r, _) -> wf_E l env @ wf_E r env
     | EIf(c, t, f, _) -> wf_E c env @ wf_E t env @ wf_E f env
     | ETuple(vals, _) -> List.concat (List.map (fun e -> wf_E e env) vals)
@@ -143,7 +151,7 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
         (printf "%s" structname);
         if (List.mem_assoc structname struct_env)
         then []
-        else [UnboundId(structname, loc)] in (* TODO could make unboundstruct *)
+        else [UnboundStructName(structname, loc)] in
       let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
       structname_existence @ fieldval_errs
     | EStructGet(structname, fieldname, inst, loc) ->
@@ -573,6 +581,11 @@ and check_num err arg =
     ITest(Sized(DWORD_PTR, arg), HexConst(0x00000001));
     IJnz(err)
   ]
+and check_struct err arg =
+  [
+    ITest(Sized(DWORD_PTR, arg), HexConst(0x00000007));
+    IJnz(err)
+  ]
 and check_nums err left right = check_num err left @ check_num err right
 and check_bool err scratch arg =
   (mov_if_needed scratch arg) @
@@ -759,6 +772,27 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
            Sized(DWORD_PTR, Reg(ESP));
            Sized(DWORD_PTR, Reg(EBP));
            Sized(DWORD_PTR, Const(num_args))]
+      | StructHuh structname ->
+        let (uniq_tag, fieldnames) = List.assoc structname struct_env in
+        let false_label = ("not_struct_" ^ (string_of_int tag)) in
+        let done_label = ("done_StructHuh_" ^ (string_of_int tag)) in
+        (mov_if_needed (Reg EAX) e_reg) @
+        [
+          IMov(Reg(EDX), Reg(EAX));
+          IAnd(Reg(EDX), Const(0x00000007));
+          ICmp((Reg EDX), Const(0x00000007));
+          IJne(false_label);
+          IMov(Reg(EDX), Reg(EAX));
+          IInstrComment(ISar(Reg(EDX), Const(3)), "get rid of the 111 tag for a StructHuh");
+          IShl(Reg(EDX), Const(3));
+          ICmp(RegOffset(0, EDX), Sized(DWORD_PTR, Const(uniq_tag lsl 1)));
+          IJne(false_label);
+          IMov(Reg(EAX), const_true);
+          IJmp(done_label);
+          ILabel(false_label);
+          IMov(Reg(EAX), const_false);
+          ILabel(done_label);
+        ]
     end
   | CPrim2(op, left, right, tag) ->
     let left_reg = compile_imm left env in
@@ -1035,7 +1069,7 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
       (* move index into EDX *)
       IMov(Reg(EDX), (compile_imm field_idx env));
       (* get the value at the index in the struct inst *)
-      (* |struct uni id (4)| lenth |(8) starting of fields value*)
+      (* |struct uni id (4)| length |(8) starting of fields value*)
       IMov(Reg(ECX), RegOffsetReg(EAX, EDX, 2, 8));
       IMov(Reg(EAX), Reg(ECX));
 

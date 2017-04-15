@@ -32,6 +32,7 @@ const int ERR_INDEX_NOT_NUM  = 9;
 const int ERR_OUT_OF_MEMORY  = 10;
 const int ERR_INDEX_OUT_OF_BOUNDS = 11;
 const int ERR_ARITY_MISMATCH = 12;
+const int ERR_IF_NOT_STRUCT  = 13;
 
 size_t HEAP_SIZE;
 int* STACK_BOTTOM;
@@ -221,6 +222,9 @@ void error(int i) {
     break;
   case ERR_ARITY_MISMATCH:
     fprintf(stderr, "Error: arity mismatch\n");
+    break;
+  case ERR_IF_NOT_STRUCT:
+    fprintf(stderr, "Error: expected struct\n");
     break;
   default:
     fprintf(stderr, "Error: Unknown error code: %d\n", i);

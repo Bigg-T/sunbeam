@@ -9,6 +9,7 @@ type ('a, 'b) either =
 
 type sourcespan = (Lexing.position * Lexing.position)
 exception UnboundId of string * sourcespan (* name, where used *)
+exception UnboundStructName of string * sourcespan (* name, where used *)
 exception UnboundFun of string * sourcespan (* name of fun, where used *)
 exception ShadowId of string * sourcespan * sourcespan (* name, where used, where defined *)
 exception DuplicateId of string * sourcespan * sourcespan (* name, where used, where defined *)
@@ -27,6 +28,7 @@ type prim1 =
   | IsNum
   | IsBool
   | IsTuple
+  | StructHuh of string
 
 type prim2 =
   | Plus

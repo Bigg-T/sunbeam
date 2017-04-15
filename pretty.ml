@@ -19,6 +19,7 @@ let string_of_op1 op =
   | IsNum -> "isnum"
   | IsBool -> "isbool"
   | IsTuple -> "istuple"
+  | StructHuh a -> "is" ^ a
 
 let name_of_op1 op =
   match op with
@@ -30,6 +31,7 @@ let name_of_op1 op =
   | IsNum -> "IsNum"
   | IsBool -> "IsBool"
   | IsTuple -> "IsTuple"
+  | StructHuh a -> "StructHuh"
 
 let string_of_op2 op =
   match op with

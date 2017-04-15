@@ -135,6 +135,8 @@ let print_errors exns =
       match e with
       | UnboundId(x, loc) ->
         sprintf "The identifier %s, used at <%s>, is not in scope" x (string_of_pos loc)
+      | UnboundStructName(x, loc) ->
+        sprintf "The structname %s, used at <%s>, was not defined" x (string_of_pos loc)
       | UnboundFun(x, loc) ->
         sprintf "The function name %s, used at <%s>, is not in scope" x (string_of_pos loc)
       | ShadowId(x, loc, existing) ->

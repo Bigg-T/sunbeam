@@ -19,6 +19,7 @@ rule token = parse
   | "def" { DEF }
   | "defstruct" { DEFSTRUCT }
   | "makestruct" { MAKESTRUCT }
+  | "?" { QUESTION }
   | "add1" { ADD1 }
   | "sub1" { SUB1 }
   | "print" { PRINT }

@@ -784,7 +784,7 @@ let combined_tests = [
 let struct_tests = [
   t "s_test1" "defstruct document (author) 7" "7";
   t "s_test2" "defstruct document (rating) makestruct document (100)" "(struct 100)";
-  terr "s_test3" "makestruct document (100)" "The identifier document";
+  terr "s_test3" "makestruct document (100)" "The structname document, used at <s_test3, 1:0-1:25>, was not defined";
   terr "s_test4" "defstruct document (rating) makestruct document (a)"
     "The identifier a, used at <s_test4, 1:49-1:50>, is not in scope";
   (* TODO add arity checking for fieldnames in  wfn *)
@@ -804,6 +804,23 @@ let struct_tests = [
                  let doc2 = makestruct document (401, false) in
                    let cab1 = makestruct cabinet (doc1, doc2) in
                      (document-rating (cabinet-d1 cab1))" "100";
+  (* t "s_test11" "defstruct document (rating, isGood)
+                let doc1 = makestruct document (100, true) in
+                is document(doc1)"
+                "true"; *)
+  (* isdocument was ambiguous, so we used document? instead *)
+  t "s_test11" "defstruct document (rating, isGood)
+                let doc1 = makestruct document (100, true) in
+                document?(doc1)"
+    "true";
+  terr "s_test12" "defstruct document (rating, isGood)
+                let doc1 = makestruct document (100, true) in
+                dog?(doc1)"
+    "The structname dog, used at <s_test12, 3:16-3:26>, was not defined";
+  t "s_test13" "defstruct document (rating, isGood)
+                let doc1 = makestruct document (100, true) in
+                document?(5)"
+                "false";
 ]
 ;;
 (* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)
