@@ -57,6 +57,9 @@ let tag (p : 'a program) : tag program =
     | EStructGet(structname, fieldname, inst, _) ->
        let struct_get_tag = tag() in
        EStructGet(structname, fieldname, helpE inst, struct_get_tag)
+    | EStructSet(structname, fieldname, inst, new_val, _) ->
+      let struct_get_tag = tag() in
+      EStructSet(structname, fieldname, helpE inst, helpE new_val, struct_get_tag)
   and helpS s =
     match s with
     | DStruct(name, fields, _) ->
@@ -102,6 +105,10 @@ let rec untag (p : 'a program) : unit program =
       ELambda(List.map (fun (x, _) -> (x, ())) args, helpE body, ())
     | EStructInst(structname, fieldvals, _) ->
       EStructInst(structname, List.map helpE fieldvals, ())
+    | EStructGet(structname, fieldname, inst, _) ->
+      EStructGet(structname, fieldname, helpE inst, ())
+    | EStructSet(structname, fieldname, inst, new_val, _) ->
+      EStructSet(structname, fieldname, helpE inst, helpE new_val, ())
   and helpS s =
     match s with
     | DStruct(name, fields, _) ->
@@ -161,6 +168,9 @@ let atag (p : 'a aprogram) : tag aprogram =
     | CStructGet(structname, fieldname, inst, _) ->
        let struct_get_tag = tag() in
        CStructGet(structname, fieldname, helpI inst, struct_get_tag)
+    | CStructSet(structname, fieldname, inst, new_val, _) ->
+      let struct_get_tag = tag() in
+      CStructSet(structname, fieldname, helpI inst, helpI new_val, struct_get_tag)
     | CImmExpr i -> CImmExpr (helpI i)
   and helpI (i : 'a immexpr) : tag immexpr =
     match i with

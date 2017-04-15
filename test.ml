@@ -820,7 +820,38 @@ let struct_tests = [
   t "s_test13" "defstruct document (rating, isGood)
                 let doc1 = makestruct document (100, true) in
                 document?(5)"
-                "false";
+    "false";
+  t "s_test14" "defstruct document (rating, isGood)
+              let doc1 = makestruct document (100, true) in
+              begin
+                (document-isGood doc1) := false;
+                (document-isGood doc1)
+              end
+              " "false";
+  t "s_test15" "defstruct document (rating, isGood)
+              let doc1 = makestruct document (100, true) in
+              begin
+                (document-isGood doc1) := false;
+                let a = (lambda : 122) in (document-rating doc1) := a;
+                doc1;
+              end
+              " "(struct <function>, false)";
+  terr "s_test16" "(document-author doc1)"
+    "The structname document, used at <s_test16, 1:0-1:22>, was not defined
+The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
+  terr "s_test17" "defstruct document (rating, isGood)
+                  let doc1 = makestruct document (100, true) in
+                  (document-author doc1)"
+    "The struct document does not have field author used at <s_test17, 3:18-3:40>";
+  terr "s_test18" "defstruct document (rating, isGood)
+                  let doc1 = makestruct document (100, true) in
+                  (document-author doc1) := 5"
+    "The struct document does not have field author used at <s_test18, 3:18-3:45>";
+  terr "s_test19" "defstruct document (rating, isGood)
+                  let doc1 = makestruct document (100, true) in
+                  (document-rating doc1) := (a + 5)"
+    "The identifier a, used at <s_test19, 3:45-3:46>, is not in scope";
+
 ]
 ;;
 (* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)

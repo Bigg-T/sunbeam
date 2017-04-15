@@ -122,6 +122,7 @@ and helpC (cexp : tag cexpr) (pure_env : (string * bool) list) : bool * (string 
   | CImmExpr i -> ((helpI i pure_env), [])
   | CStructInst(structname, fieldvals, _) -> ((false), [])
   | CStructGet(structname, fieldname, inst, _) -> ((true), [])
+  | CStructSet(structname, fieldname, inst, new_val, _) -> ((false), [])
 and helpI (imm : tag immexpr) (pure_env : (string * bool) list) : bool =
   match imm with
   | ImmNum(n, _) -> true
@@ -260,6 +261,8 @@ and const_fold_not_simple (cexp : 'a cexpr) (env : simple_env) : unit cexpr =
     CStructInst(structname, (List.map untag_immexpr fieldvals), ())
   | CStructGet(structname, fieldname, inst, _) ->
     CStructGet(structname, fieldname, untag_immexpr inst, ())
+  | CStructSet(structname, fieldname, inst, new_val, _) ->
+    CStructSet(structname, fieldname, untag_immexpr inst, untag_immexpr new_val, ())
   | _ -> failwith "Not complex"
 and const_fold_simple (sexp : simple_expr) (env : simple_env) : simple_expr =
   match sexp with
@@ -442,6 +445,8 @@ and cse_not_simple (cexp : 'a cexpr) (assoc_env : (simple_expr * simple_expr) li
     (CStructInst(structname, (List.map untag_immexpr fieldvals), ()))
   | CStructGet(structname, fieldname, inst, _) ->
     CStructGet(structname, fieldname, (cse_immexpr inst assoc_env purity), ())
+  | CStructSet(structname, fieldname, inst, new_val, _) ->
+    CStructSet(structname, fieldname, (cse_immexpr inst assoc_env purity), (cse_immexpr new_val assoc_env purity), ())
   | _ -> failwith "Not complex"
 and cse_simple (sexp : simple_expr) (assoc_env : (simple_expr * simple_expr) list) (purity : (string * bool) list) : simple_expr =
   match sexp with
@@ -556,6 +561,10 @@ and dae_not_simple (cexp : 'a cexpr) (live_ids : string list) (purity : (string 
   | CStructGet(structname, fieldname, inst, _) ->
     let (struct_simp_c, struct_ids) = (dae_c (CImmExpr(inst)) live_ids purity) in
     (CStructGet(structname, fieldname, (untag_immexpr inst), ()), struct_ids @ live_ids)
+  | CStructSet(structname, fieldname, inst, new_val, _) ->
+    let (struct_simp_c, struct_ids) = (dae_c (CImmExpr(inst)) live_ids purity) in
+    let (new_val_simp_c, new_val_ids) = (dae_c (CImmExpr(new_val)) live_ids purity) in
+    (CStructSet(structname, fieldname, (untag_immexpr inst), (untag_immexpr new_val), ()), struct_ids @ live_ids @ new_val_ids)
   | _ -> failwith "Not complex"
 and dae_simple (sexp : simple_expr) (live_ids : string list) : (simple_expr * string list) =
   match sexp with

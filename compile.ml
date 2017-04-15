@@ -148,14 +148,27 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
     | EStructInst(structname, fieldvals, loc) ->
       let structname_existence =
-        (printf "%s" structname);
         if (List.mem_assoc structname struct_env)
         then []
         else [UnboundStructName(structname, loc)] in
       let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
       structname_existence @ fieldval_errs
     | EStructGet(structname, fieldname, inst, loc) ->
-      [] (* TODO add wfn for EStructInst *)
+      let struct_errs = check_struct_field structname fieldname struct_env loc in
+      struct_errs @ (wf_E inst env)
+    | EStructSet(structname, fieldname, inst, new_val, loc) ->
+      let struct_errs = check_struct_field structname fieldname struct_env loc in
+      struct_errs @ (wf_E inst env) @ (wf_E new_val env)
+  and check_struct_field structname fieldname struct_env loc =
+    if (List.mem_assoc structname struct_env)
+    then
+      let (uniq_tag, fieldnames) = (List.assoc structname struct_env) in
+      let fieldname_err =
+        if (List.mem fieldname fieldnames)
+        then []
+        else [UnboundFieldName(fieldname, structname, loc)]
+      in fieldname_err
+    else [UnboundStructName(structname, loc)]
   in
   match p with
   | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
@@ -309,6 +322,11 @@ let anf (p : tag program) : unit aprogram =
       let tmp = sprintf "structget_%d" tag in
       let (inst_imm, inst_setup) = helpI inst in
       (ImmId(tmp, ()), inst_setup @ [BLet(tmp, CStructGet(structname, fieldname, inst_imm, ()))])
+    | EStructSet(structname, fieldname, inst, new_val, tag) ->
+      let tmp = sprintf "structget_%d" tag in
+      let (inst_imm, inst_setup) = helpI inst in
+      let (new_val_imm, new_val_setup) = helpI new_val in
+      (ImmId(tmp, ()), inst_setup @ new_val_setup @ [BLet(tmp, CStructSet(structname, fieldname, inst_imm, new_val_imm, ()))])
 
   and helpA e : unit aexpr =
     let (ans, ans_setup) = helpC e in
@@ -1074,6 +1092,36 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
       IMov(Reg(EAX), Reg(ECX));
 
       ILineComment("CStructGet end here" ^ string_of_int tag)
+    ]
+  | CStructSet(structname, fieldname, inst, new_val, tag) ->
+    let (uniq_tag, fieldnames) = List.assoc structname struct_env in
+    let field_idx = ImmNum((get_struct_field_idx fieldname fieldnames 0), 0) in
+    let compiled_new_val =
+      match (compile_imm new_val env) with
+      | RegOffset(_, _) ->
+        [
+          IMov(Reg(ECX), (compile_imm new_val env));
+          IMov(RegOffsetReg(EAX, EDX, 2, 8), Reg(ECX));
+        ]
+      | _ -> [IMov(RegOffsetReg(EAX, EDX, 2, 8), Sized(DWORD_PTR, (compile_imm new_val env)));] in
+    (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
+    [
+      ILineComment("CStructGet start here" ^ string_of_int tag);
+      IMov(Reg(EAX), (compile_imm inst env));
+    ]
+    @ (* TODO add check_struct, error if not struct *)
+    [
+      ISar(Reg(EAX), Const(3));
+      IShl(Reg(EAX), Const(3));
+      IMov(Reg(EDX), (compile_imm field_idx env));
+    ]
+    (* TODO need error for not having field name *)
+    @ compiled_new_val @
+    [
+      (* IMov(Reg(CL), (compile_imm new_elt env)); *)
+      (* IMov(RegOffsetReg(EAX, EDX, 2, 4), Sized(DWORD_PTR, (compile_imm new_elt env))); *)
+      (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
+      (* IAdd(Reg(EAX), Const(1)); *)
     ]
 and compile_imm e env =
   match e with

@@ -10,6 +10,7 @@ type ('a, 'b) either =
 type sourcespan = (Lexing.position * Lexing.position)
 exception UnboundId of string * sourcespan (* name, where used *)
 exception UnboundStructName of string * sourcespan (* name, where used *)
+exception UnboundFieldName of string * string * sourcespan (* fieldname, structname, where used *)
 exception UnboundFun of string * sourcespan (* name of fun, where used *)
 exception ShadowId of string * sourcespan * sourcespan (* name, where used, where defined *)
 exception DuplicateId of string * sourcespan * sourcespan (* name, where used, where defined *)
@@ -72,6 +73,7 @@ and 'a expr =
   | ESeq of 'a expr list * 'a
   | EStructInst of string * 'a expr list * 'a
   | EStructGet of string * string * 'a expr * 'a
+  | EStructSet of string * string * 'a expr * 'a expr * 'a
 
 (* type 'a program = 'a expr *)
 
@@ -96,6 +98,7 @@ and 'a cexpr = (* compound expressions *)
   | CLambda of string list * 'a aexpr * 'a
   | CStructInst of string * 'a immexpr list * 'a
   | CStructGet of string * string * 'a immexpr * 'a
+  | CStructSet of string * string * 'a immexpr * 'a immexpr * 'a
   | CImmExpr of 'a immexpr (* for when you just need an immediate value *)
 and 'a aexpr = (* anf expressions *)
   | ALet of string * 'a cexpr * 'a aexpr * 'a

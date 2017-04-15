@@ -91,6 +91,8 @@ simple_expr :
   | simple_expr LBRACK expr RBRACK GETS expr { ESetItem($1, $3, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | simple_expr LBRACK colon_num RBRACK { EGetItemExact($1, $3, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | simple_expr LBRACK colon_num RBRACK GETS expr { ESetItemExact($1, $3, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | LPAREN ID MINUS ID expr RPAREN { EStructGet($2, $4, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | LPAREN ID MINUS ID expr RPAREN GETS expr { EStructSet($2, $4, $5, $8, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | BEGIN block_exprs END { ESeq($2, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | const { $1 }
   | ID { EId($1, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
@@ -121,7 +123,6 @@ expr :
   | LET REC binds IN expr { ELetRec($3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | IF expr COLON expr ELSECOLON expr { EIf($2, $4, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | MAKESTRUCT ID LPAREN exprs RPAREN { EStructInst($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
-  | LPAREN ID MINUS ID expr RPAREN { EStructGet($2, $4, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | binop_expr { $1 }
 
 dstruct :

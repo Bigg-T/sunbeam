@@ -137,6 +137,8 @@ let print_errors exns =
         sprintf "The identifier %s, used at <%s>, is not in scope" x (string_of_pos loc)
       | UnboundStructName(x, loc) ->
         sprintf "The structname %s, used at <%s>, was not defined" x (string_of_pos loc)
+      | UnboundFieldName(fieldname, structname, loc) ->
+        sprintf "The struct %s does not have field %s used at <%s>" structname fieldname (string_of_pos loc)
       | UnboundFun(x, loc) ->
         sprintf "The function name %s, used at <%s>, is not in scope" x (string_of_pos loc)
       | ShadowId(x, loc, existing) ->

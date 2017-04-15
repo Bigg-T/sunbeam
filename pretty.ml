@@ -156,6 +156,8 @@ and string_of_cexpr c =
     sprintf "(make-struct %s (%s))" structname (ExtString.String.join ", " (List.map string_of_immexpr fieldvals))
   | CStructGet(structname, fieldname, inst, _) ->
     sprintf "(%s-%s %s)" structname fieldname (string_of_immexpr inst)
+  | CStructSet(structname, fieldname, inst, new_val, _) ->
+    sprintf "(%s-%s %s) := %s" structname fieldname (string_of_immexpr inst) (string_of_immexpr new_val)
   | CImmExpr i -> string_of_immexpr i
 and string_of_immexpr i =
   match i with
