@@ -18,7 +18,7 @@ rule token = parse
   | signed_int as x { NUM (int_of_string x) }
   | "def" { DEF }
   | "defstruct" { DEFSTRUCT }
-  | "makestruct" { MAKESTRUCT }
+  | "make" { MAKE }
   | "?" { QUESTION }
   | "add1" { ADD1 }
   | "sub1" { SUB1 }

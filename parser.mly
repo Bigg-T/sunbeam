@@ -15,7 +15,7 @@ let elaborate_schema foralls typ =
 
 %token <int> NUM
 %token <string> ID
-%token LBRACK RBRACK DEF DEFSTRUCT MAKESTRUCT QUESTION ADD1 SUB1 LPAREN RPAREN LET REC IN EQUAL COMMA PLUS MINUS TIMES IF COLON ELSECOLON TRUE FALSE ISBOOL ISNUM ISTUPLE LAMBDA EQEQ LESS GREATER PRINT PRINTSTACK EOF LESSEQ GREATEREQ AND OR NOT GETS BEGIN END SEMI ARROW
+%token LBRACK RBRACK DEF DEFSTRUCT MAKE QUESTION ADD1 SUB1 LPAREN RPAREN LET REC IN EQUAL COMMA PLUS MINUS TIMES IF COLON ELSECOLON TRUE FALSE ISBOOL ISNUM ISTUPLE LAMBDA EQEQ LESS GREATER PRINT PRINTSTACK EOF LESSEQ GREATEREQ AND OR NOT GETS BEGIN END SEMI ARROW
 
 %left LPAREN
 %left PLUS MINUS TIMES GREATER LESS EQEQ LESSEQ GREATEREQ AND OR
@@ -122,7 +122,7 @@ expr :
   | LET binds IN expr { ELet($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | LET REC binds IN expr { ELetRec($3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | IF expr COLON expr ELSECOLON expr { EIf($2, $4, $6, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
-  | MAKESTRUCT ID LPAREN exprs RPAREN { EStructInst($2, $4, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
+  | MAKE MINUS ID LPAREN exprs RPAREN { EStructInst($3, $5, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | binop_expr { $1 }
 
 dstruct :

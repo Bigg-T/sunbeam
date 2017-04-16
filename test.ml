@@ -783,53 +783,52 @@ let combined_tests = [
 
 let struct_tests = [
   t "s_test1" "defstruct document (author) 7" "7";
-  t "s_test2" "defstruct document (rating) makestruct document (100)" "(struct 100)";
-  terr "s_test3" "makestruct document (100)" "The structname document, used at <s_test3, 1:0-1:25>, was not defined";
-  terr "s_test4" "defstruct document (rating) makestruct document (a)"
-    "The identifier a, used at <s_test4, 1:49-1:50>, is not in scope";
-  (* TODO add arity checking for fieldnames in  wfn *)
-  t "s_test5" "defstruct document (rating, isGood) makestruct document (100, true)" "(struct 100, true)";
-  t "s_test6" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in doc1" "(struct 100, true)";
-  t "s_test7" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in (document-rating doc1)" "100";
-  t "s_test8" "defstruct document (rating, isGood) let doc1 = makestruct document (100, true) in (document-isGood doc1)" "true";
+  t "s_test2" "defstruct document (rating) make-document (100)" "(struct 100)";
+  terr "s_test3" "make-document (100)" "The structname document, used at <s_test3, 1:0-1:19>, was not defined";
+  terr "s_test4" "defstruct document (rating) make-document (a)"
+    "The identifier a, used at <s_test4, 1:43-1:44>, is not in scope";
+  t "s_test5" "defstruct document (rating, isGood) make-document (100, true)" "(struct 100, true)";
+  t "s_test6" "defstruct document (rating, isGood) let doc1 = make-document (100, true) in doc1" "(struct 100, true)";
+  t "s_test7" "defstruct document (rating, isGood) let doc1 = make-document (100, true) in (document-rating doc1)" "100";
+  t "s_test8" "defstruct document (rating, isGood) let doc1 = make-document (100, true) in (document-isGood doc1)" "true";
   t "s_test9" "defstruct document (rating, isGood)
               defstruct cabinet (d1, d2)
-              let doc1 = makestruct document (100, true) in
-                let doc2 = makestruct document (401, false) in
-                  let cab1 = makestruct cabinet (doc1, doc2) in
+              let doc1 = make-document (100, true) in
+                let doc2 = make-document (401, false) in
+                  let cab1 = make-cabinet (doc1, doc2) in
                     (cabinet-d1 cab1)" "(struct 100, true)";
   t "s_test10" "defstruct document (rating, isGood)
                defstruct cabinet (d1, d2)
-               let doc1 = makestruct document (100, true) in
-                 let doc2 = makestruct document (401, false) in
-                   let cab1 = makestruct cabinet (doc1, doc2) in
+               let doc1 = make-document (100, true) in
+                 let doc2 = make-document (401, false) in
+                   let cab1 = make-cabinet (doc1, doc2) in
                      (document-rating (cabinet-d1 cab1))" "100";
   (* t "s_test11" "defstruct document (rating, isGood)
-                let doc1 = makestruct document (100, true) in
+                let doc1 = make-document (100, true) in
                 is document(doc1)"
                 "true"; *)
   (* isdocument was ambiguous, so we used document? instead *)
   t "s_test11" "defstruct document (rating, isGood)
-                let doc1 = makestruct document (100, true) in
+                let doc1 = make-document (100, true) in
                 document?(doc1)"
     "true";
   terr "s_test12" "defstruct document (rating, isGood)
-                let doc1 = makestruct document (100, true) in
+                let doc1 = make-document (100, true) in
                 dog?(doc1)"
     "The structname dog, used at <s_test12, 3:16-3:26>, was not defined";
   t "s_test13" "defstruct document (rating, isGood)
-                let doc1 = makestruct document (100, true) in
+                let doc1 = make-document (100, true) in
                 document?(5)"
     "false";
   t "s_test14" "defstruct document (rating, isGood)
-              let doc1 = makestruct document (100, true) in
+              let doc1 = make-document (100, true) in
               begin
                 (document-isGood doc1) := false;
                 (document-isGood doc1)
               end
               " "false";
   t "s_test15" "defstruct document (rating, isGood)
-              let doc1 = makestruct document (100, true) in
+              let doc1 = make-document (100, true) in
               begin
                 (document-isGood doc1) := false;
                 let a = (lambda : 122) in (document-rating doc1) := a;
@@ -840,21 +839,21 @@ let struct_tests = [
     "The structname document, used at <s_test16, 1:0-1:22>, was not defined
 The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
   terr "s_test17" "defstruct document (rating, isGood)
-                  let doc1 = makestruct document (100, true) in
+                  let doc1 = make-document (100, true) in
                   (document-author doc1)"
     "The struct document does not have field author used at <s_test17, 3:18-3:40>";
   terr "s_test18" "defstruct document (rating, isGood)
-                  let doc1 = makestruct document (100, true) in
+                  let doc1 = make-document (100, true) in
                   (document-author doc1) := 5"
     "The struct document does not have field author used at <s_test18, 3:18-3:45>";
   terr "s_test19" "defstruct document (rating, isGood)
-                  let doc1 = makestruct document (100, true) in
+                  let doc1 = make-document (100, true) in
                   (document-rating doc1) := (a + 5)"
     "The identifier a, used at <s_test19, 3:45-3:46>, is not in scope";
   terr "s_test20" "defstruct document (rating, isGood)
-                    let doc1 = makestruct document (true) in
+                    let doc1 = make-document (true) in
                     doc1"
-    "The struct document expects 2 fields, received 1 at <s_test20, 2:31-2:57>";
+    "The struct document expects 2 fields, received 1 at";
   terr "s_test21" "defstruct document (rating, isGood)
                 defstruct document (grade)
                 7"
@@ -862,23 +861,23 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
   t "s_test22" "defstruct dog (isGood, id)
                 defstruct cat (isGood, id)
                 defstruct julie (dog, cat)
-                let dog1 = makestruct dog (true, 1) in
-                let cat1 = makestruct cat (true, 2) in
-                let me = makestruct julie (dog1, cat1) in
+                let dog1 = make-dog (true, 1) in
+                let cat1 = make-cat (true, 2) in
+                let me = make-julie (dog1, cat1) in
                 me"
     "(struct (struct true, 1), (struct true, 2))";
   t_opt "s_test23" "defstruct score (grade1, grade2)
-                let score1 = makestruct score (70 + 3, 5) in
+                let score1 = make-score (70 + 3, 5) in
                 score1"
      "(defstruct score (grade1, grade2))(alet binop_5 = 73 in (alet score1 = (make-struct score (binop_5, 5)) in score1))";
   t_opt "s_test24" "defstruct score (grade1, grade2)
                   let a = 70 + 3 in
                   let b = a + 73 in
-                  let score1 = makestruct score (a + 73, 5) in
+                  let score1 = make-score (a + 73, 5) in
                   score1"
      "(defstruct score (grade1, grade2))(alet binop_7 = 146 in (alet score1 = (make-struct score (binop_7, 5)) in score1))";
   t_opt "s_test25" "defstruct score (grade1, grade2)
-                 let score1 = makestruct score (73, 5) in
+                 let score1 = make-score (73, 5) in
                  begin
                    (score-grade1 score1) := let a = 70 + 3 in let b = a + 73 in a + 73;
                    score1
@@ -886,16 +885,16 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
     "(defstruct score (grade1, grade2))(alet score1 = (make-struct score (73, 5)) in (alet binop_6 = 146 in (alet structget_3 = (score-grade1 score1) := binop_6 in (structget_3; score1))))";
   t_opt "s_test26" "defstruct score (grade1, grade2) 5" "5";
   t "s_test27" "defstruct grade (listofscores, scorefn)
-                let grade1 = makestruct grade ((70, 80, 90), (lambda x, y, z: (x + y + z))) in
+                let grade1 = make-grade ((70, 80, 90), (lambda x, y, z: (x + y + z))) in
                 let a = (grade-scorefn grade1) in
                 a(5, 6, 7)"
     "18";
   t "s_test28" "defstruct dog (isGood)
-                let dogs = ((makestruct dog (true)), (makestruct dog (true))) in
+                let dogs = ((make-dog (true)), (make-dog (true))) in
                 dogs"
      "((struct true), (struct true))";
   t "s_test29" "defstruct dog (isGood)
-                let getdog = (lambda : (makestruct dog (true))) in
+                let getdog = (lambda : (make-dog (true))) in
                 getdog()"
     "(struct true)";
 
@@ -903,7 +902,7 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
   t "s_test31" "let yo = (lambda : (lambda x: x)) in yo()" "<function>";
 ]
 ;;
-(* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)
+(* defstruct document (rating, isGood) make-document (100, true) document-rating doc1 *)
 
 (* assignment has us assume that higher order functions aren't passed impure arguments*)
 (* t "c_test18" (* *)
