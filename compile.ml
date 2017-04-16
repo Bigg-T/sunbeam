@@ -373,6 +373,12 @@ let free_vars (e : 'a aexpr) : string list =
     | CTuple(vals, _) -> List.flatten (List.map (fun v -> helpI bound v) vals)
     | CGetItem(tup, idx, _) -> helpI bound tup @ helpI bound idx
     | CSetItem(tup, idx, rhs, _) -> helpI bound tup @ helpI bound idx @ helpI bound rhs
+    | CStructInst(structname, fieldvals, _) ->
+      (List.flatten (List.map (fun fieldval -> helpI bound fieldval) fieldvals))
+    | CStructGet(structname, fieldname, inst, _) ->
+      (helpI bound inst)
+    | CStructSet(structname, fieldname, inst, new_val, _) ->
+      (helpI bound inst) @ (helpI bound new_val)
     | CImmExpr i -> helpI bound i
   and helpI (bound : string list) (e : 'a immexpr) : string list =
     match e with
@@ -1250,6 +1256,9 @@ let optimize (prog : tag aprogram) (verbose : bool) : tag aprogram =
        printf "DAE/tagged:\n%s\n" (string_of_aprogram dae_prog)
      end
    else ());
+  (* const_prog *)
+  (* cse_prog *)
+  (* dae_prog *)
   dae_prog2
 ;;
 

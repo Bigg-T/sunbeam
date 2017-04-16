@@ -67,6 +67,8 @@ and helpA (aexp : tag aexpr) (pure_env : (string * bool) list) : bool * (string 
     let new_bind_env =
       begin match binding with
         | CImmExpr(ImmId(a, _)) -> (name, true)::bind_env
+        | CApp(ImmId(a, _), args, _) ->
+          (name, (List.assoc a pure_env))::((name ^ "_body"), (List.assoc a pure_env))::bind_env
         | _ -> (name, bind)::bind_env
       end in
     let (bod, bod_env) = helpA body (bind_body_env @ pure_env @ new_bind_env @ bind_env) in
@@ -112,7 +114,10 @@ and helpC (cexp : tag cexpr) (pure_env : (string * bool) list) : bool * (string 
   | CApp(fn, args, _) ->
     begin match fn with
       | ImmId(name, _) ->
-        ((List.assoc (name ^ "_body") pure_env), [])
+        (* (false, []) *)
+        if (List.mem_assoc (name ^ "_body") pure_env)
+        then ((List.assoc (name ^ "_body") pure_env), [])
+        else (false, [])
       | _ -> failwith "Impossible"
     end
 (* this only looks for purity/impurity in the lambda 1 level deep*)
@@ -121,14 +126,14 @@ and helpC (cexp : tag cexpr) (pure_env : (string * bool) list) : bool * (string 
   | CSetItem(tup, idx, rhs, _) -> ((false), [])
   | CImmExpr i -> ((helpI i pure_env), [])
   | CStructInst(structname, fieldvals, _) -> ((false), [])
-  | CStructGet(structname, fieldname, inst, _) -> ((true), [])
+  | CStructGet(structname, fieldname, inst, _) -> ((false), [])
   | CStructSet(structname, fieldname, inst, new_val, _) -> ((false), [])
 and helpI (imm : tag immexpr) (pure_env : (string * bool) list) : bool =
   match imm with
   | ImmNum(n, _) -> true
   | ImmBool(b, _) -> true
-  | ImmId(name, _) ->
-    (List.assoc name pure_env)
+  | ImmId(name, _) -> if (List.mem_assoc name pure_env) then (List.assoc name pure_env) else false
+    (* (List.assoc name pure_env) *)
 (* doesn't need to check existed, because inorder for id to be use it must existed.
    If not this would of failed in well_formed*)
 and env_for_lambda_body name bind pure_env=
@@ -219,6 +224,13 @@ let rec debug_print (env : simple_env) : string =
   | (str, sim)::rest ->
     "Key: " ^ str ^ " ; " ^ "value: " ^ (string_of_simple sim) ^ "\n" ^ (debug_print rest)
 
+
+let rec debug_purity (env : (string * bool) list) : string =
+  match env with
+  | [] -> ""
+  | (str, b)::rest ->
+    "Key: " ^ str ^ " ; " ^ "value: " ^ (string_of_bool b) ^ "\n" ^ (debug_purity rest)
+;;
 
 let rec const_fold (prog : tag aprogram) : unit aprogram =
   match prog with
@@ -452,7 +464,7 @@ and cse_simple (sexp : simple_expr) (assoc_env : (simple_expr * simple_expr) lis
   match sexp with
   | Id(name) ->
     if (List.mem_assoc sexp assoc_env)
-    then List.assoc sexp assoc_env
+    then (List.assoc sexp assoc_env)
     else sexp
   | Num(n) -> sexp
   | Bool(b) -> sexp
@@ -478,13 +490,19 @@ and cse_simple (sexp : simple_expr) (assoc_env : (simple_expr * simple_expr) lis
     end
 ;;
 
-
 let rec dae (prog : tag aprogram) : unit aprogram =
   let purity = purity_env prog in
     match prog with
       | AProgram(dstructs, prog_body, _) ->
         let (new_prog, live_ids) = dae_a prog_body [] purity in
-        AProgram((List.map untag_dstruct dstructs), new_prog, ())
+        let new_dstructs = (dae_dstructs dstructs live_ids) in
+        AProgram((List.map untag_dstruct new_dstructs), new_prog, ())
+and dae_dstructs (dstructs : 'a dstruct list) (live_ids : string list) : ('a dstruct list) =
+  List.filter (
+    fun (dstruct) ->
+      match dstruct with
+      | DStruct(structname, fieldnames, _) -> List.mem structname live_ids
+  ) dstructs
 and dae_a (aexp : 'a aexpr) (live_ids : string list) (purity : (string * bool) list) : (unit aexpr * string list)  =
   match aexp with
   | ALet(name, binding, body, _) ->
@@ -557,7 +575,7 @@ and dae_not_simple (cexp : 'a cexpr) (live_ids : string list) (purity : (string 
         (List.map
            (fun (a) -> let (c, ids) = (dae_c (CImmExpr(a)) live_ids purity) in ids)
            fieldvals) in
-    (CStructInst(structname, (List.map untag_immexpr fieldvals), ()), new_vals_live_ids @ live_ids)
+    (CStructInst(structname, (List.map untag_immexpr fieldvals), ()), structname::new_vals_live_ids @ live_ids)
   | CStructGet(structname, fieldname, inst, _) ->
     let (struct_simp_c, struct_ids) = (dae_c (CImmExpr(inst)) live_ids purity) in
     (CStructGet(structname, fieldname, (untag_immexpr inst), ()), struct_ids @ live_ids)

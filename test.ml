@@ -768,7 +768,7 @@ let combined_tests = [
     "(printStack(8); 6)";
   t_opt "c3_test23"
     "let a = (lambda: 6) in let b = a() in 5"
-    "((lambda(): 6); 5)";
+    "(alet a = (lambda(): 6) in ((a()); 5))";
   t_opt "c3_test24"
     "let a = (lambda: (1, 2, 3)) in let b = a() in 5"
     "(alet a = (lambda(): (1, 2, 3)) in ((a()); 5))";
@@ -859,6 +859,48 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
                 defstruct document (grade)
                 7"
     "The struct document used at <s_test21, 2:16-2:42> has already been defined";
+  t "s_test22" "defstruct dog (isGood, id)
+                defstruct cat (isGood, id)
+                defstruct julie (dog, cat)
+                let dog1 = makestruct dog (true, 1) in
+                let cat1 = makestruct cat (true, 2) in
+                let me = makestruct julie (dog1, cat1) in
+                me"
+    "(struct (struct true, 1), (struct true, 2))";
+  t_opt "s_test23" "defstruct score (grade1, grade2)
+                let score1 = makestruct score (70 + 3, 5) in
+                score1"
+     "(defstruct score (grade1, grade2))(alet binop_5 = 73 in (alet score1 = (make-struct score (binop_5, 5)) in score1))";
+  t_opt "s_test24" "defstruct score (grade1, grade2)
+                  let a = 70 + 3 in
+                  let b = a + 73 in
+                  let score1 = makestruct score (a + 73, 5) in
+                  score1"
+     "(defstruct score (grade1, grade2))(alet binop_7 = 146 in (alet score1 = (make-struct score (binop_7, 5)) in score1))";
+  t_opt "s_test25" "defstruct score (grade1, grade2)
+                 let score1 = makestruct score (73, 5) in
+                 begin
+                   (score-grade1 score1) := let a = 70 + 3 in let b = a + 73 in a + 73;
+                   score1
+                 end"
+    "(defstruct score (grade1, grade2))(alet score1 = (make-struct score (73, 5)) in (alet binop_6 = 146 in (alet structget_3 = (score-grade1 score1) := binop_6 in (structget_3; score1))))";
+  t_opt "s_test26" "defstruct score (grade1, grade2) 5" "5";
+  t "s_test27" "defstruct grade (listofscores, scorefn)
+                let grade1 = makestruct grade ((70, 80, 90), (lambda x, y, z: (x + y + z))) in
+                let a = (grade-scorefn grade1) in
+                a(5, 6, 7)"
+    "18";
+  t "s_test28" "defstruct dog (isGood)
+                let dogs = ((makestruct dog (true)), (makestruct dog (true))) in
+                dogs"
+     "((struct true), (struct true))";
+  t "s_test29" "defstruct dog (isGood)
+                let getdog = (lambda : (makestruct dog (true))) in
+                getdog()"
+    "(struct true)";
+
+  t "s_test30" "let yo = (lambda : (lambda x: x)) in let a = yo() in a(5)" "5";
+  t "s_test31" "let yo = (lambda : (lambda x: x)) in yo()" "<function>";
 ]
 ;;
 (* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)
@@ -869,10 +911,17 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
    "(alet f = (lambda(x): (x(7))) in (alet a = (lambda(x): (x + 1)) in (f(a))))"; *)
 
 
+let focus = [
+
+]
+;;
+
+
 let suite =
   (* "suite">:::tests @ mutable_tuple_tests @ pair_tests @ oom @ wfn_tests
              @ regression_tests @ gc @ letrec_tests @ combined_tests *)
   "suite">:::struct_tests
+  (* "suite">:::focus *)
 ;;
 
 let () =
