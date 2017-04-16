@@ -147,12 +147,16 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
     | EApp(func, args, loc) ->
       (wf_E func env) @ List.concat (List.map (fun e -> wf_E e env) args)
     | EStructInst(structname, fieldvals, loc) ->
-      let structname_existence =
-        if (List.mem_assoc structname struct_env)
-        then []
-        else [UnboundStructName(structname, loc)] in
       let fieldval_errs = List.flatten (List.map (fun f -> (wf_E f env)) fieldvals) in
-      structname_existence @ fieldval_errs
+      if (List.mem_assoc structname struct_env)
+      then
+        let (uniq_tag, fieldnames) = (List.assoc structname struct_env) in
+        let arity_err =
+          if ((List.length fieldvals) = (List.length fieldnames))
+          then []
+          else [MismatchFieldArity(structname, (List.length fieldnames), (List.length fieldvals), loc)] in
+        arity_err @ fieldval_errs
+      else [UnboundStructName(structname, loc)] @ fieldval_errs
     | EStructGet(structname, fieldname, inst, loc) ->
       let struct_errs = check_struct_field structname fieldname struct_env loc in
       struct_errs @ (wf_E inst env)
@@ -1164,6 +1168,14 @@ let rec make_struct_env (structdefs : 'a dstruct list) (uniq_tag : int) : senvt 
     (name, (uniq_tag, field_names))::(make_struct_env rest (uniq_tag + 1))
 ;;
 
+let rec well_formed_structdefs (structdefs : 'a dstruct list) (defnd_structs : string list) : exn list =
+  match structdefs with
+  | [] -> []
+  | DStruct(name, fields, loc)::rest ->
+    if (List.mem name defnd_structs)
+    then (DuplicateStructDef(name, loc))::(well_formed_structdefs rest defnd_structs)
+    else (well_formed_structdefs rest (name::defnd_structs))
+;;
 
 let compile_prog prog =
   let (structdefs, anfed) =
@@ -1249,7 +1261,7 @@ let compile_to_string prog : (exn list, string) either =
       (dstructs, body) in
   let struct_env = (make_struct_env structdefs 1) in
   let env = [ (* DBuiltin("equal", 2) *) ] in
-  let errors = (well_formed prog env struct_env) in
+  let errors = (well_formed prog env struct_env) @ (well_formed_structdefs structdefs []) in
   match errors with
   | [] ->
     let tagged : tag program = tag prog in

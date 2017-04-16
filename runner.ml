@@ -139,6 +139,10 @@ let print_errors exns =
         sprintf "The structname %s, used at <%s>, was not defined" x (string_of_pos loc)
       | UnboundFieldName(fieldname, structname, loc) ->
         sprintf "The struct %s does not have field %s used at <%s>" structname fieldname (string_of_pos loc)
+      | MismatchFieldArity(structname, num_expected, num_received, loc) ->
+        sprintf "The struct %s expects %d fields, received %d at <%s>" structname num_expected num_received (string_of_pos loc)
+      | DuplicateStructDef(structname, loc) ->
+        sprintf "The struct %s used at <%s> has already been defined" structname (string_of_pos loc)
       | UnboundFun(x, loc) ->
         sprintf "The function name %s, used at <%s>, is not in scope" x (string_of_pos loc)
       | ShadowId(x, loc, existing) ->

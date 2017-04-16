@@ -851,7 +851,14 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
                   let doc1 = makestruct document (100, true) in
                   (document-rating doc1) := (a + 5)"
     "The identifier a, used at <s_test19, 3:45-3:46>, is not in scope";
-
+  terr "s_test20" "defstruct document (rating, isGood)
+                    let doc1 = makestruct document (true) in
+                    doc1"
+    "The struct document expects 2 fields, received 1 at <s_test20, 2:31-2:57>";
+  terr "s_test21" "defstruct document (rating, isGood)
+                defstruct document (grade)
+                7"
+    "The struct document used at <s_test21, 2:16-2:42> has already been defined";
 ]
 ;;
 (* defstruct document (rating, isGood) makestruct document (100, true) document-rating doc1 *)
