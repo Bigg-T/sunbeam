@@ -38,7 +38,6 @@ let rec print_errs (errs : exn list) : string =
   match errs with
   | [] -> ""
   | first::rest -> Printexc.to_string first ^ " " ^ print_errs rest
-  | _ -> "Nothing"
 ;;
 
 let pair_tests = [
@@ -778,6 +777,7 @@ let combined_tests = [
      let c = print(b) + 5 in
      a"
     "(alet b = print(5) in (alet unary_8 = print(b) in ((unary_8 + 5); 5)))";
+  t_opt "c3_test26" "let a = (1, 2) in let b = a in (a, b)" "(alet a = (1, 2) in (a, a))";
 ]
 ;;
 

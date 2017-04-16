@@ -114,6 +114,13 @@ let rec string_of_expr (e : 'a expr) : string =
       (string_of_expr body)
   | ESeq(stmts, _) ->
     sprintf "(%s)" (ExtString.String.join "; " (List.map string_of_expr stmts))
+  | EStructInst(structname, fieldvals, _) ->
+    sprintf "(make-struct %s (%s))" structname (ExtString.String.join ", " (List.map string_of_expr fieldvals))
+  | EStructGet(structname, fieldname, inst, _) ->
+    sprintf "(%s-%s %s)" structname fieldname (string_of_expr inst)
+  | EStructSet(structname, fieldname, inst, new_val, _) ->
+    sprintf "(%s-%s %s) := %s" structname fieldname (string_of_expr inst) (string_of_expr new_val)
+
 
 let string_of_pos ((pstart, pend) : (Lexing.position * Lexing.position)) : string =
   sprintf "%s, %d:%d-%d:%d" pstart.pos_fname pstart.pos_lnum (pstart.pos_cnum - pstart.pos_bol)
@@ -299,6 +306,7 @@ let rec format_expr (e : 'a expr) (print_a : 'a -> string) : string =
       print_comma_sep fmt;
       ignore(format_expr body print_a);
       close_paren fmt
+    | _ -> ()
   in
   help e str_formatter;
   flush_str_formatter ()

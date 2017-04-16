@@ -502,7 +502,6 @@ let rec compile_fun fun_name args e struct_env : (instruction list * instruction
      IInstrComment(IRet, sprintf "End of %s" fun_name)
    ])
 and compile_lambda args lambda_body tag env struct_env =
-  let env_str_list = List.map ((fun (x, _) -> x)) env in
   let rec is_contain_string l str =
     match l with
     | [] -> false

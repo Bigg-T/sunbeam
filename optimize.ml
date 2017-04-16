@@ -32,6 +32,9 @@ let free_vars (e : 'a aexpr) : string list =
     | CTuple(vals, _) -> List.flatten (List.map (fun v -> helpI bound v) vals)
     | CGetItem(tup, idx, _) -> helpI bound tup @ helpI bound idx
     | CSetItem(tup, idx, rhs, _) -> helpI bound tup @ helpI bound idx @ helpI bound rhs
+    | CStructInst(structname, fieldvals, _) -> List.flatten (List.map (fun fieldval -> helpI bound fieldval) fieldvals)
+    | CStructGet(structname, fieldname, inst, _) -> helpI bound inst
+    | CStructSet(structname, fieldname, inst, new_val, _) -> helpI bound inst @ helpI bound new_val
     | CImmExpr i -> helpI bound i
   and helpI (bound : string list) (e : 'a immexpr) : string list =
     match e with
@@ -198,6 +201,10 @@ let rec untag_cexpr (cexp : 'a cexpr) : unit cexpr =
   | CGetItem(a, b, _) -> CGetItem((untag_immexpr a), (untag_immexpr b), ())
   | CSetItem(a, b, c, _) -> CSetItem((untag_immexpr a), (untag_immexpr b), (untag_immexpr c), ())
   | CLambda(a, b, _) -> CLambda(a, (untag_aexpr b), ())
+  | CStructInst(structname, fieldvals, _) -> CStructInst(structname, (List.map untag_immexpr fieldvals), ())
+  | CStructGet(structname, fieldname, inst, _) -> CStructGet(structname, fieldname, untag_immexpr inst, ())
+  | CStructSet(structname, fieldname, inst, new_val, _) ->
+    CStructSet(structname, fieldname, untag_immexpr inst, untag_immexpr new_val, ())
   | CImmExpr(a) -> CImmExpr((untag_immexpr a))
 and untag_aexpr (aexp : 'a aexpr) : unit aexpr =
   match aexp with
@@ -432,11 +439,15 @@ and cse_not_simple (cexp : 'a cexpr) (assoc_env : (simple_expr * simple_expr) li
     let els_simp = (cse_a els assoc_env purity) in
     (CIf(cond_simp_c, thn_simp, els_simp, ()))
   | CTuple(vals_list, _) ->
-    let new_vals_live_ids =
+    let new_vals_list =
       (List.map
-         (fun (a) -> (cse_c (CImmExpr(a)) assoc_env purity))
+         (fun (a) ->
+            match (cse_c (CImmExpr(a)) assoc_env purity) with
+            | CImmExpr(a) -> a
+            | _ -> failwith "Impossible"
+         )
          vals_list) in
-    (CTuple((List.map untag_immexpr vals_list), ()))
+    (CTuple((List.map untag_immexpr new_vals_list), ()))
   | CGetItem(tup, idx, _) ->
     let tup_simp_c = (cse_immexpr tup assoc_env purity) in
     let idx_simp_c = (cse_immexpr idx assoc_env purity) in
@@ -450,11 +461,15 @@ and cse_not_simple (cexp : 'a cexpr) (assoc_env : (simple_expr * simple_expr) li
     let body_simp = (cse_a body assoc_env purity) in
     (CLambda(names, body_simp, ()))
   | CStructInst(structname, fieldvals, _) ->
-    let new_vals_live_ids =
+    let new_vals_list =
       (List.map
-         (fun (a) -> (cse_c (CImmExpr(a)) assoc_env purity))
+         (fun (a) ->
+            match (cse_c (CImmExpr(a)) assoc_env purity) with
+            | CImmExpr(a) -> a
+            | _ -> failwith "Impossible"
+         )
          fieldvals) in
-    (CStructInst(structname, (List.map untag_immexpr fieldvals), ()))
+    (CStructInst(structname, (List.map untag_immexpr new_vals_list), ()))
   | CStructGet(structname, fieldname, inst, _) ->
     CStructGet(structname, fieldname, (cse_immexpr inst assoc_env purity), ())
   | CStructSet(structname, fieldname, inst, new_val, _) ->
@@ -534,7 +549,6 @@ and dae_a (aexp : 'a aexpr) (live_ids : string list) (purity : (string * bool) l
       List.flatten (List.map (fun (name, c) -> let (new_c, ids) = (dae_c c live_ids purity) in ids) bindings) in
     let (body_a, body_ids) = (dae_a body binds_live_ids purity) in
     (ALetRec(binds_c, body_a, ()), (body_ids @ binds_live_ids @ live_ids))
-  | _ -> failwith "NYI"
 and dae_c (cexp : 'a cexpr) (live_ids : string list) (purity : (string * bool) list): (unit cexpr * string list) =
   let simple = cexpr_to_simple_opt cexp in
   match simple with
