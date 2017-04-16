@@ -897,11 +897,23 @@ The identifier doc1, used at <s_test16, 1:17-1:21>, is not in scope";
                 let getdog = (lambda : (make-dog (true))) in
                 getdog()"
     "(struct true)";
-
   t "s_test30" "let yo = (lambda : (lambda x: x)) in let a = yo() in a(5)" "5";
   t "s_test31" "let yo = (lambda : (lambda x: x)) in yo()" "<function>";
+  terr "test32" "define-struct dog (isGood)
+              let marco = (make-dog (true)) in
+              (dog-isGood 7)"
+    "Error: expected struct";
+  terr "test33" "define-struct dog (isGood)
+              let marco = (make-dog (true)) in
+              (dog-isGood 7) := 5"
+    "Error: expected struct";
+  terr "test34" "define-struct dog (isGood)
+              let marco = (make-dog (true)) in
+              (dog-name marco) := 5"
+    "The struct dog does not have field name used at <test34, 3:14-3:35>";
 ]
 ;;
+
 
 let suite =
   "suite">:::tests @ mutable_tuple_tests @ pair_tests @ oom @ wfn_tests

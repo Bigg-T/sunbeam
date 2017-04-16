@@ -30,6 +30,7 @@ let err_INDEX_NOT_NUM  = 9
 let err_INDEX_OUT_OF_BOUNDS = 11
 let err_ARITY_MISMATCH = 12
 let err_IF_NOT_TUPLE = 13
+let err_IF_NOT_STRUCT = 14
 
 
 let const_true = HexConst (0xFFFFFFFF)
@@ -173,9 +174,16 @@ let well_formed (p : (Lexing.position * Lexing.position) program) builtins struc
         else [UnboundFieldName(fieldname, structname, loc)]
       in fieldname_err
     else [UnboundStructName(structname, loc)]
+  and wf_structdefs (structdefs : 'a dstruct list) (defnd_structs : string list) : exn list =
+    match structdefs with
+    | [] -> []
+    | DStruct(name, fields, loc)::rest ->
+      if (List.mem name defnd_structs)
+      then (DuplicateStructDef(name, loc))::(wf_structdefs rest defnd_structs)
+      else (wf_structdefs rest (name::defnd_structs))
   in
   match p with
-  | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins (*TODO add wfn for structs*)
+  | Program(dstructs, prog_bod, _) -> wf_E prog_bod builtins @ wf_structdefs dstructs []
 ;;
 
 
@@ -561,7 +569,7 @@ and compile_lambda args lambda_body tag env struct_env =
   let str_list_str str_list = List.fold_left ((fun x y -> x ^ " " ^ y)) " " str_list in
   (([
       (* TODO not quite right, you'll want this jump to come before the function name, if it has one *)
-      IJmp(end_lambda_body_label ^ string_of_int tag); (* TODO but you're jumping over where you save the ESP :( *)
+      IJmp(end_lambda_body_label ^ string_of_int tag);
       ILabel("exec_lambda_body_" ^ string_of_int tag);
       ILineComment("Function prologue");
       IPush(Reg(EBP));
@@ -610,8 +618,10 @@ and check_num err arg =
   ]
 and check_struct err arg =
   [
-    ITest(Sized(DWORD_PTR, arg), HexConst(0x00000007));
-    IJnz(err)
+    IMov(Reg(EDX), arg);
+    IAnd(Reg(EDX), HexConst(0x00000007));
+    ICmp(Sized(DWORD_PTR, Reg(EDX)), HexConst(0x00000007));
+    IJne(err)
   ]
 and check_nums err left right = check_num err left @ check_num err right
 and check_bool err scratch arg =
@@ -1086,7 +1096,7 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
       ILineComment("CStructGet start here" ^ string_of_int tag);
       IMov(Reg(EAX), (compile_imm inst env));
     ]
-    @ (* TODO add check_struct, error if not struct *)
+    @ (check_struct "err_if_not_struct" (Reg EAX)) @
     [
       (* shift right and shift left by 3 to get rid of the 111 tag for a struct inst *)
       IInstrComment(ISar(Reg(EAX), Const(3)), "get rid of the 111 tag for a struct inst");
@@ -1112,25 +1122,17 @@ and compile_cexpr (e : tag cexpr) si env num_args is_tail struct_env =
           IMov(RegOffsetReg(EAX, EDX, 2, 8), Reg(ECX));
         ]
       | _ -> [IMov(RegOffsetReg(EAX, EDX, 2, 8), Sized(DWORD_PTR, (compile_imm new_val env)));] in
-    (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
     [
       ILineComment("CStructGet start here" ^ string_of_int tag);
       IMov(Reg(EAX), (compile_imm inst env));
     ]
-    @ (* TODO add check_struct, error if not struct *)
+    @ (check_struct "err_if_not_struct" (Reg EAX)) @
     [
       ISar(Reg(EAX), Const(3));
       IShl(Reg(EAX), Const(3));
       IMov(Reg(EDX), (compile_imm field_idx env));
     ]
-    (* TODO need error for not having field name *)
-    @ compiled_new_val @
-    [
-      (* IMov(Reg(CL), (compile_imm new_elt env)); *)
-      (* IMov(RegOffsetReg(EAX, EDX, 2, 4), Sized(DWORD_PTR, (compile_imm new_elt env))); *)
-      (* IMov(RegOffsetReg(EAX, EDX, 2, 4), (compile_imm new_elt env)); *)
-      (* IAdd(Reg(EAX), Const(1)); *)
-    ]
+    @ compiled_new_val
 and compile_imm e env =
   match e with
   | ImmNum(n, _) -> Const((n lsl 1))
@@ -1172,15 +1174,6 @@ let rec make_struct_env (structdefs : 'a dstruct list) (uniq_tag : int) : senvt 
     (name, (uniq_tag, field_names))::(make_struct_env rest (uniq_tag + 1))
 ;;
 
-let rec well_formed_structdefs (structdefs : 'a dstruct list) (defnd_structs : string list) : exn list =
-  match structdefs with
-  | [] -> []
-  | DStruct(name, fields, loc)::rest ->
-    if (List.mem name defnd_structs)
-    then (DuplicateStructDef(name, loc))::(well_formed_structdefs rest defnd_structs)
-    else (well_formed_structdefs rest (name::defnd_structs))
-;;
-
 let compile_prog prog =
   let (structdefs, anfed) =
     match prog with
@@ -1211,7 +1204,8 @@ err_get_not_tuple:%s
 err_get_low_index:%s
 err_get_high_index:%s
 err_index_out_of_bounds:%s
-err_index_not_num:%s"
+err_index_not_num:%s
+err_if_not_struct:%s"
       (* If you modified `call` above, then fix these up, too *)
       (to_asm (call (Label "error") [Const(err_COMP_NOT_NUM)]))
       (to_asm (call (Label "error") [Const(err_ARITH_NOT_NUM)]))
@@ -1225,6 +1219,7 @@ err_index_not_num:%s"
       (to_asm (call (Label "error") [Const(err_INDEX_NOT_NUM)]))
       (to_asm (call (Label "error") [Const(err_INDEX_OUT_OF_BOUNDS)]))
       (to_asm (call (Label "error") [Const(err_IF_NOT_TUPLE)]))
+      (to_asm (call (Label "error") [Const(err_IF_NOT_STRUCT)]))
   in
   (* $heap is a mock parameter name, just so that compile_fun knows our_code_starts_here takes in 1 parameter *)
   let (prologue, comp_main, epilogue) = compile_fun "our_code_starts_here" ["$heap"] anfed struct_env in
@@ -1268,7 +1263,7 @@ let compile_to_string prog : (exn list, string) either =
       (dstructs, body) in
   let struct_env = (make_struct_env structdefs 1) in
   let env = [ (* DBuiltin("equal", 2) *) ] in
-  let errors = (well_formed prog env struct_env) @ (well_formed_structdefs structdefs []) in
+  let errors = (well_formed prog env struct_env) in
   match errors with
   | [] ->
     let tagged : tag program = tag prog in

@@ -32,7 +32,7 @@ const int ERR_INDEX_NOT_NUM  = 9;
 const int ERR_OUT_OF_MEMORY  = 10;
 const int ERR_INDEX_OUT_OF_BOUNDS = 11;
 const int ERR_ARITY_MISMATCH = 12;
-const int ERR_IF_NOT_STRUCT  = 13;
+const int ERR_IF_NOT_STRUCT  = 14;
 
 size_t HEAP_SIZE;
 int* STACK_BOTTOM;
