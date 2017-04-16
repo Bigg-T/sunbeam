@@ -174,7 +174,7 @@ and string_of_immexpr i =
 and string_of_dstruct d =
   match d with
   | DStruct(name, fields, _) ->
-    sprintf "(defstruct %s (%s))" name (ExtString.String.join ", " (List.map fst fields))
+    sprintf "(define-struct %s (%s))" name (ExtString.String.join ", " (List.map fst fields))
 and string_of_aprogram p =
   match p with
   | AProgram(dstructs, body, _) ->

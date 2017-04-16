@@ -132,10 +132,6 @@ dstructs :
   | dstruct { [$1] }
   | dstruct dstructs { $1::$2 }
 
-/*program :
-  | sstructs expr EOF { Program($1, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
-  | expr EOF { $1 }*/
-
 program :
   | dstructs expr EOF { Program($1, $2, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }
   | expr EOF { Program([], $1, (Parsing.symbol_start_pos (), Parsing.symbol_end_pos ())) }

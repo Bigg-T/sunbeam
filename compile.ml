@@ -660,7 +660,6 @@ and check_out_of_bounds err tup_addr idx_reg =
 and compile_aexpr (e : tag aexpr) (si : int) (env : arg envt) (num_args : int) (is_tail : bool) (struct_env : senvt) : instruction list =
   match e with
   | ALet(id, e, body, tag) ->
-    printf "let id: %s\n" id;
     let create_lambda_label =
       begin match e with
         | CLambda(args, body, l_tag) ->
